@@ -1,0 +1,129 @@
+# ─── macOS ──────────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# ─── Editor / IDE ────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.cursor/
+
+# ─── Node / npm / yarn ───────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# ─── Environment / secrets ───────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.local
+ADMIN_LOGIN.local.txt
+
+# ─── Backend (NestJS) ────────────────────────────────────────────────────────
+reward-system-backend/dist/
+reward-system-backend/.nestjs/
+reward-system-backend/node_modules/
+reward-system-backend/*.tsbuildinfo
+# SQLite dev database (never commit)
+reward-system-backend/*.sqlite
+reward-system-backend/*.db
+# Upload / temp directories
+reward-system-backend/uploads/
+reward-system-backend/tmp/
+
+# ─── Frontend (Vite React) ───────────────────────────────────────────────────
+reward-system-frontend/node_modules/
+reward-system-frontend/dist/
+reward-system-frontend/dist-ssr/
+reward-system-frontend/coverage/
+reward-system-frontend/.vite/
+reward-system-frontend/*.tsbuildinfo
+
+# ─── Mobile (React Native) ───────────────────────────────────────────────────
+RewardSystem/node_modules/
+RewardSystem/.bundle/
+RewardSystem/.cursor/
+
+# iOS
+RewardSystem/ios/build/
+RewardSystem/ios/DerivedData/
+RewardSystem/ios/*.xcuserstate
+RewardSystem/ios/*.xccheckout
+RewardSystem/ios/*.moved-aside
+RewardSystem/ios/xcuserdata/
+RewardSystem/ios/**/*.pbxuser
+!RewardSystem/ios/**/default.pbxuser
+RewardSystem/ios/**/*.mode1v3
+!RewardSystem/ios/**/default.mode1v3
+RewardSystem/ios/**/*.mode2v3
+!RewardSystem/ios/**/default.mode2v3
+RewardSystem/ios/**/*.perspectivev3
+!RewardSystem/ios/**/default.perspectivev3
+RewardSystem/ios/**/.xcode.env.local
+RewardSystem/ios/Pods/
+RewardSystem/ios/.xcode.env.local
+
+# Android
+RewardSystem/android/build/
+RewardSystem/android/app/build/
+RewardSystem/android/.gradle/
+RewardSystem/android/captures/
+RewardSystem/android/local.properties
+RewardSystem/android/.cxx/
+RewardSystem/android/app/.cxx/
+RewardSystem/android/.externalNativeBuild/
+RewardSystem/android/**/*.iml
+RewardSystem/android/**/*.hprof
+RewardSystem/android/.kotlin/
+RewardSystem/android/*.keystore
+RewardSystem/android/*.jks
+!RewardSystem/android/app/debug.keystore
+
+# Metro bundler
+RewardSystem/.metro-health-check*
+RewardSystem/.metro-cache/
+
+# Bundle artifacts
+*.jsbundle
+RewardSystem/*.jsbundle
+
+# Ruby / CocoaPods / Gems (iOS toolchain)
+RewardSystem/vendor/bundle/
+RewardSystem/Gemfile.lock
+RewardSystem/**/*.gem
+
+# Fastlane
+RewardSystem/**/fastlane/report.xml
+RewardSystem/**/fastlane/Preview.html
+RewardSystem/**/fastlane/screenshots
+RewardSystem/**/fastlane/test_output
+
+# Test / coverage
+RewardSystem/coverage/
+reward-system-backend/coverage/
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+logs/
+*.log
+
+# ─── Misc ─────────────────────────────────────────────────────────────────────
+*.tgz
+*.zip
+*.tar.gz

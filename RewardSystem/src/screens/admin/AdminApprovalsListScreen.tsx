@@ -19,6 +19,8 @@ import {
   type AdminRedemptionListItem,
 } from '../../api/adminRedemptions';
 import { isApiError, userFacingApiMessage } from '../../api/client';
+import { getAuthMe } from '../../api/users';
+import { isOperationalOnly } from './adminRole';
 
 type Nav = NativeStackNavigationProp<
   AdminApprovalsStackParamList,
@@ -45,6 +47,8 @@ function ApprovalListRow({
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.95 }]}
+      accessibilityRole="button"
+      accessibilityLabel={`Open request ${item.code}`}
       onPress={onOpen}>
       <View style={styles.cardTop}>
         <Text style={styles.reqId}>#{item.code}</Text>
@@ -64,7 +68,11 @@ function ApprovalListRow({
           <View style={styles.pendingRow}>
             <View style={styles.orangeDot} />
             <Text style={styles.pendingTxt}>{item.pendingLabel}</Text>
-            <Pressable onPress={onOpen}>
+            <Pressable
+              onPress={onOpen}
+              accessibilityRole="button"
+              accessibilityLabel={`Review request ${item.code}`}
+              hitSlop={8}>
               <Text style={styles.review}>Review {'>'}</Text>
             </Pressable>
           </View>
@@ -94,6 +102,7 @@ export function AdminApprovalsListScreen() {
   const [items, setItems] = useState<AdminRedemptionListItem[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [total, setTotal] = useState<number | null>(null);
+  const [operationalOnly, setOperationalOnly] = useState(false);
 
   const take = 20;
 
@@ -106,52 +115,79 @@ export function AdminApprovalsListScreen() {
     [items],
   );
 
-  const load = useCallback(
-    async (mode: 'reset' | 'more') => {
-      if (mode === 'more') {
-        if (loadingMore || loading || !hasMore) return;
-        setLoadingMore(true);
-      } else {
-        setLoading(true);
-      }
+  const loadReset = useCallback(
+    async (flaggedValue: boolean) => {
+      setLoading(true);
       setError(null);
       try {
-        const offset = mode === 'more' ? items.length : 0;
+        const me = await getAuthMe().catch(() => ({ user: null }));
+        const opOnly = isOperationalOnly(me.user ?? null);
+        setOperationalOnly(opOnly);
         const res = await listAdminRedemptions({
-          status: 'PROCESSING',
+          status: opOnly ? 'SHIPPED' : 'PROCESSING',
           sort: 'HIGH_VALUE',
           take,
-          offset,
-          flagged,
+          offset: 0,
+          flagged: flaggedValue,
         });
         setTotal(res.total);
         setHasMore(res.hasMore);
-        setItems(prev => (mode === 'more' ? [...prev, ...res.items] : res.items));
+        setItems(res.items);
       } catch (e) {
         if (isApiError(e)) setError(userFacingApiMessage(e.message));
         else setError('Could not load approvals.');
       } finally {
         setLoading(false);
-        setLoadingMore(false);
       }
     },
-    [flagged, hasMore, items.length, loading, loadingMore],
+    [],
   );
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || loading || !hasMore) return;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const me = await getAuthMe().catch(() => ({ user: null }));
+      const opOnly = isOperationalOnly(me.user ?? null);
+      setOperationalOnly(opOnly);
+      const res = await listAdminRedemptions({
+        status: opOnly ? 'SHIPPED' : 'PROCESSING',
+        sort: 'HIGH_VALUE',
+        take,
+        offset: items.length,
+        flagged,
+      });
+      setTotal(res.total);
+      setHasMore(res.hasMore);
+      setItems(prev => [...prev, ...res.items]);
+    } catch (e) {
+      if (isApiError(e)) setError(userFacingApiMessage(e.message));
+      else setError('Could not load approvals.');
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [flagged, hasMore, items.length, loading, loadingMore]);
 
   useFocusEffect(
     useCallback(() => {
-      load('reset').catch(() => {});
-    }, [load]),
+      loadReset(flagged).catch(() => {});
+    }, [flagged, loadReset]),
   );
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" />
-      <Text style={styles.pageTitle}>Approval Request List</Text>
-      <Text style={styles.hero}>Pending Approvals</Text>
+      <Text style={styles.pageTitle}>
+        {operationalOnly ? 'Dispatch Request List' : 'Approval Request List'}
+      </Text>
+      <Text style={styles.hero}>
+        {operationalOnly ? 'Dispatch & Delivery Queue' : 'Pending Approvals'}
+      </Text>
       <Text style={styles.heroSub}>
-        Review and authorise high-value rewards for the loyalty program
-        ecosystem.
+        {operationalOnly
+          ? 'Process approved rewards and coordinate dispatch status updates.'
+          : 'Review and authorise high-value rewards for the loyalty program ecosystem.'}
       </Text>
 
       <View style={styles.toolbar}>
@@ -165,11 +201,6 @@ export function AdminApprovalsListScreen() {
             value={flagged}
             onValueChange={(v) => {
               setFlagged(v);
-              // Reload immediately to match toggle behavior in design.
-              // Avoid waiting for next focus.
-              setTimeout(() => {
-                load('reset').catch(() => {});
-              }, 0);
             }}
             trackColor={{ false: '#E5E7EB', true: '#FDBA74' }}
             thumbColor={flagged ? adminUi.accentOrange : '#f4f3f4'}
@@ -208,8 +239,10 @@ export function AdminApprovalsListScreen() {
             <Pressable
               style={[styles.loadMore, (!hasMore || loadingMore) && styles.loadMoreDisabled]}
               disabled={!hasMore || loadingMore}
+              accessibilityRole="button"
+              accessibilityLabel="Load more approval requests"
               onPress={() => {
-                load('more').catch(() => {});
+                loadMore().catch(() => {});
               }}>
               {loadingMore ? (
                 <ActivityIndicator color={adminUi.sectionTitle} />
@@ -219,7 +252,7 @@ export function AdminApprovalsListScreen() {
             </Pressable>
             <Text style={styles.footerHint}>
               Showing {items.length} of {total ?? items.length} pending high-ticket
-              requests.
+              {operationalOnly ? ' dispatch requests.' : ' requests.'}
             </Text>
           </View>
         }

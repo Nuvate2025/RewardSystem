@@ -17,10 +17,11 @@ import {
   getAdminDashboard,
   type AdminDashboardResponse,
 } from '../../api/admin';
-import { getMyProfile } from '../../api/users';
+import { getAuthMe, getMyProfile } from '../../api/users';
 import { isApiError, userFacingApiMessage } from '../../api/client';
 import type { AdminTabParamList } from '../../navigation/types';
 import { adminUi } from '../../theme/adminUi';
+import { isOperationalOnly } from './adminRole';
 
 type AdminHomeNav = BottomTabNavigationProp<AdminTabParamList, 'AdminHome'>;
 
@@ -112,6 +113,7 @@ export function SuperAdminDashboardScreen() {
   const [error, setError] = useState<string | null>(null);
   const [headlineName, setHeadlineName] = useState('Admin');
   const [dash, setDash] = useState<AdminDashboardResponse | null>(null);
+  const [operationalOnly, setOperationalOnly] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -122,6 +124,8 @@ export function SuperAdminDashboardScreen() {
       ]);
       setHeadlineName(displayName(profile.fullName, profile.email));
       setDash(d);
+      const me = await getAuthMe().catch(() => ({ user: null }));
+      setOperationalOnly(isOperationalOnly(me.user ?? null));
     } catch (e) {
       if (isApiError(e)) {
         if (e.status === 403 || e.status === 401) {
@@ -157,6 +161,10 @@ export function SuperAdminDashboardScreen() {
     navigation.navigate('AdminApprovals', { screen: 'AdminApprovalsList' });
   };
 
+  const openOpsApprovals = () => {
+    navigation.navigate('AdminUsers', { screen: 'AdminOpsApprovals' });
+  };
+
   const activityPlus =
     dash && dash.couponsScannedToday.last5MinutesCount > 0
       ? `+${Math.min(dash.couponsScannedToday.last5MinutesCount, 99)}`
@@ -190,6 +198,8 @@ export function SuperAdminDashboardScreen() {
               onPress={() => {
                 load().catch(() => {});
               }}
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading dashboard"
               hitSlop={12}>
               <Text style={styles.retry}>Retry</Text>
             </Pressable>
@@ -201,9 +211,13 @@ export function SuperAdminDashboardScreen() {
             <View style={[styles.actionCard, adminUi.shadowActionCard]}>
               <View style={styles.actionGlow} pointerEvents="none" />
               <Text style={styles.actionQueueLabel}>ACTION QUEUE</Text>
-              <Text style={styles.actionTitle}>Pending Approvals</Text>
+              <Text style={styles.actionTitle}>
+                {operationalOnly ? 'Dispatch Queue' : 'Pending Approvals'}
+              </Text>
               <Text style={styles.actionSub}>
-                Requires validation for high-value reward redemptions
+                {operationalOnly
+                  ? 'Coordinate packing and delivery for approved rewards.'
+                  : 'Requires validation for high-value reward redemptions'}
               </Text>
               <View style={styles.actionMetricRow}>
                 <Text style={styles.actionCount}>
@@ -219,10 +233,39 @@ export function SuperAdminDashboardScreen() {
                 onPress={openApprovals}
                 accessibilityRole="button"
                 accessibilityLabel="Open request queue">
-                <Text style={styles.actionCtaText}>Request Queue</Text>
+                <Text style={styles.actionCtaText}>
+                  {operationalOnly ? 'Open Dispatch Queue' : 'Request Queue'}
+                </Text>
                 <Text style={styles.actionCtaArrow}>{'\u2192'}</Text>
               </Pressable>
             </View>
+
+            {!operationalOnly ? (
+              <View style={[styles.opsCard, adminUi.shadowCard]}>
+                <Text style={styles.opsLabel}>OPS ADMIN ONBOARDING</Text>
+                <Text style={styles.opsTitle}>Approval Requests</Text>
+                <Text style={styles.opsSub}>
+                  Review Ops Admin signup requests and approve access.
+                </Text>
+                <View style={styles.opsMetricRow}>
+                  <Text style={styles.opsCount}>
+                    {formatInt(dash.pendingOpsAdminApprovalsCount)}
+                  </Text>
+                  <Text style={styles.opsRequests}>requests</Text>
+                </View>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.opsCta,
+                    pressed && { opacity: 0.92 },
+                  ]}
+                  onPress={openOpsApprovals}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open Ops Admin approval requests">
+                  <Text style={styles.opsCtaText}>Open Approvals</Text>
+                  <Text style={styles.opsCtaArrow}>{'\u2192'}</Text>
+                </Pressable>
+              </View>
+            ) : null}
 
             <Text style={styles.blockTitle}>Key Metrics</Text>
 
@@ -395,6 +438,69 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   actionCtaArrow: {
+    color: adminUi.white,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  opsCard: {
+    backgroundColor: adminUi.cardBg,
+    borderRadius: adminUi.radiusHeroCard,
+    padding: 20,
+    marginBottom: 22,
+    borderWidth: 1,
+    borderColor: adminUi.borderSoft,
+  },
+  opsLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: adminUi.labelMuted,
+    letterSpacing: 0.8,
+    marginBottom: 6,
+  },
+  opsTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: adminUi.sectionTitle,
+  },
+  opsSub: {
+    fontSize: 13,
+    color: adminUi.labelMuted,
+    marginTop: 6,
+    lineHeight: 18,
+  },
+  opsMetricRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginTop: 12,
+    gap: 8,
+  },
+  opsCount: {
+    fontSize: 34,
+    fontWeight: '900',
+    color: adminUi.sectionTitle,
+  },
+  opsRequests: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: adminUi.labelMuted,
+  },
+  opsCta: {
+    marginTop: 14,
+    backgroundColor: '#111827',
+    borderRadius: adminUi.radiusPill,
+    paddingVertical: 14,
+    paddingHorizontal: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  opsCtaText: {
+    color: adminUi.white,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  opsCtaArrow: {
     color: adminUi.white,
     fontSize: 18,
     fontWeight: '700',

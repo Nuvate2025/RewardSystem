@@ -18,6 +18,7 @@ import {
   RewardsInactive,
   ScannerWhite,
 } from '../assets/svgs';
+import { AppCard, AppChip } from '../components/ui';
 import { getAuthMe, getMyProfile } from '../api/users';
 import { redirectStaffToAdminShellIfNeeded } from '../auth/staffShellRedirect';
 import { getMyTransactions } from '../api/transactions';
@@ -163,13 +164,15 @@ export function HomeScreen() {
           </View>
           <View style={styles.ptsBadge}>
             <RewardsActive width={20} height={20} />
-            <Text style={styles.ptsBadgeText}>
-              {balance.toLocaleString()} Pts
-            </Text>
+            <AppChip
+              text={`${balance.toLocaleString()} Pts`}
+              variant="accent"
+              style={styles.pointsChip}
+            />
           </View>
         </View>
 
-        <View style={styles.balanceCard}>
+        <AppCard style={styles.balanceCard} variant="elevated">
           <Text style={styles.cardLabel}>CURRENT BALANCE</Text>
           <View style={styles.balanceRow}>
             <Text style={styles.balanceNum}>{balance.toLocaleString()}</Text>
@@ -186,7 +189,7 @@ export function HomeScreen() {
               style={[styles.progressFill, { width: `${tierProgress * 100}%` }]}
             />
           </View>
-        </View>
+        </AppCard>
 
         <Pressable
           style={({ pressed }) => [styles.scanCta, pressed && styles.scanCtaPressed]}
@@ -217,7 +220,7 @@ export function HomeScreen() {
         ) : null}
 
         {activities.map(item => (
-          <View key={item.id} style={styles.activityCard}>
+          <AppCard key={item.id} style={styles.activityCard} compact variant="elevated">
             <View style={styles.activityIcon}>
               <ActivityRowIcon name={item.icon} />
             </View>
@@ -232,7 +235,7 @@ export function HomeScreen() {
               ]}>
               {item.points}
             </Text>
-          </View>
+          </AppCard>
         ))}
       </ScrollView>
     </View>
@@ -287,25 +290,11 @@ const styles = StyleSheet.create({
   ptsBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.badgeTint,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
     gap: 6,
   },
-  ptsBadgeText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.navyAlt,
-  },
+  pointsChip: { paddingVertical: 5, paddingHorizontal: 10 },
   balanceCard: {
     marginTop: 20,
-    backgroundColor: colors.white,
-    borderRadius: figma.radiusScreenCard,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: figma.borderSoft,
-    ...figma.shadowSoft,
   },
   cardLabel: {
     fontSize: 11,
@@ -396,13 +385,7 @@ const styles = StyleSheet.create({
   activityCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    borderRadius: figma.radiusScreenCard,
-    borderWidth: 1,
-    borderColor: figma.borderSoft,
     marginBottom: 10,
-    backgroundColor: colors.white,
-    ...figma.shadowSoft,
   },
   activityIcon: {
     width: 44,

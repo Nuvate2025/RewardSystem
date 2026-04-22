@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from './client';
+import { apiDelete, apiGet, apiPost } from './client';
 
 export type RewardDto = {
   id: string;
@@ -23,6 +23,11 @@ export async function listRewards(maxPoints?: number) {
       ? `?maxPoints=${encodeURIComponent(String(maxPoints))}`
       : '';
   return apiGet<RewardDto[]>(`/rewards${q}`);
+}
+
+export async function getWorkerRedemptionSlabs() {
+  const res = await apiGet<{ slabs: number[] }>('/rewards/slabs');
+  return res.slabs ?? [];
 }
 
 export async function getReward(id: string) {
@@ -61,8 +66,7 @@ export async function listMyRedemptions() {
 }
 
 export async function cancelMyRedemption(redemptionId: string) {
-  return apiPost<{ id: string; status: string }>(
+  return apiDelete<{ id: string; status: string }>(
     `/rewards/me/redemptions/${encodeURIComponent(redemptionId)}/cancel`,
-    {},
   );
 }

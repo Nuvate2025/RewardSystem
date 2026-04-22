@@ -9,10 +9,12 @@ export class RewardsController {
   constructor(private readonly rewards: RewardsService) {}
 
   @Get()
-  list(@Query('maxPoints') maxPoints?: string) {
+  list(@Req() req: Request, @Query('maxPoints') maxPoints?: string) {
     const n = maxPoints ? Number(maxPoints) : undefined;
+    const user = req.user as AuthUser;
     return this.rewards.list({
       maxPoints: Number.isFinite(n as number) ? (n as number) : undefined,
+      userId: user.id,
     });
   }
 
@@ -21,6 +23,11 @@ export class RewardsController {
   myRedemptions(@Req() req: Request) {
     const user = req.user as AuthUser;
     return this.rewards.listMyRedemptions(user.id);
+  }
+
+  @Get('slabs')
+  getWorkerSlabs() {
+    return this.rewards.getWorkerSlabs();
   }
 
   @Get(':id')

@@ -1,4 +1,4 @@
-import { apiPost } from './client';
+import { apiGet, apiPost } from './client';
 
 export type RedeemCouponResponse = {
   pointsAdded: number;
@@ -38,4 +38,28 @@ export async function generateCouponBatch(params: {
     ...(params.site ? { site: params.site } : {}),
     ...(params.expiresAt ? { expiresAt: params.expiresAt } : {}),
   });
+}
+
+export type CouponStatus = 'ACTIVE' | 'REDEEMED' | 'EXPIRED';
+
+export type AdminCouponItem = {
+  id: string;
+  code: string;
+  points: number;
+  title: string;
+  site: string | null;
+  status: CouponStatus;
+  expiresAt: string | null;
+  createdAt: string;
+};
+
+export async function listCoupons(params?: {
+  status?: CouponStatus;
+  take?: number;
+}) {
+  const q = new URLSearchParams();
+  if (params?.status) q.set('status', params.status);
+  if (params?.take != null) q.set('take', String(params.take));
+  const qs = q.toString();
+  return apiGet<AdminCouponItem[]>(`/coupons${qs ? `?${qs}` : ''}`);
 }

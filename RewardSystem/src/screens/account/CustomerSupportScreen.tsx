@@ -16,8 +16,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ArrowRightOrange,
   BackArrowLeft,
+  ChatBubbleWhite,
   PhoneHandsetWhite,
 } from '../../assets/svgs';
+import { AppButton } from '../../components/ui';
 import { getSupportInfo } from '../../api/support';
 import type { ProfileStackParamList } from '../../navigation/types';
 import { SUPPORT } from './accountFigmaData';
@@ -36,6 +38,7 @@ export function CustomerSupportScreen() {
   const [loading, setLoading] = useState(true);
   const [phone, setPhone] = useState<string | null>(SUPPORT.fallbackPhone);
   const [email, setEmail] = useState<string | null>(SUPPORT.email);
+  const [whatsapp, setWhatsapp] = useState<string | null>(SUPPORT.fallbackWhatsapp);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,6 +47,7 @@ export function CustomerSupportScreen() {
         if (cancelled) return;
         if (s.phone != null) setPhone(s.phone);
         if (s.email != null) setEmail(s.email);
+        if (s.whatsapp != null) setWhatsapp(s.whatsapp);
       })
       .catch(() => {})
       .finally(() => {
@@ -58,6 +62,12 @@ export function CustomerSupportScreen() {
     const p = phone?.replace(/\s/g, '') ?? '';
     if (!p) return;
     Linking.openURL(`tel:${p}`).catch(() => {});
+  };
+
+  const onWhatsApp = () => {
+    const w = whatsapp?.replace(/\D/g, '') ?? '';
+    if (!w) return;
+    Linking.openURL(`https://wa.me/${w}`).catch(() => {});
   };
 
   return (
@@ -95,21 +105,37 @@ export function CustomerSupportScreen() {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.cardTag}>AVAILABLE 24/7</Text>
+            <Text style={styles.cardTag}>{SUPPORT.callTag}</Text>
             <View style={styles.cardIconCircle}>
               <PhoneHandsetWhite width={22} height={22} />
             </View>
-            <Text style={styles.cardTitle}>Call Support</Text>
-            <Text style={styles.cardBody}>
-              Connect with a real human expert{'\n'}immediately
-            </Text>
-            <Pressable
-              style={({ pressed }) => [styles.callBtn, pressed && styles.pressed]}
+            <Text style={styles.cardTitle}>{SUPPORT.callTitle}</Text>
+            <Text style={styles.cardBody}>{SUPPORT.callBody}</Text>
+            <AppButton
+              text="Call Now"
+              variant="neutral"
+              style={styles.callBtn}
+              leftIcon={<ArrowRightOrange width={18} height={18} />}
               onPress={onCall}
-              disabled={!phone}>
-              <Text style={styles.callBtnText}>Call Now</Text>
-              <ArrowRightOrange width={18} height={18} />
-            </Pressable>
+              disabled={!phone}
+            />
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.cardTag}>{SUPPORT.waTag}</Text>
+            <View style={[styles.cardIconCircle, styles.whatsappCircle]}>
+              <ChatBubbleWhite width={22} height={22} />
+            </View>
+            <Text style={styles.cardTitle}>{SUPPORT.waTitle}</Text>
+            <Text style={styles.cardBody}>{SUPPORT.waBody}</Text>
+            <AppButton
+              text="Chat on WhatsApp"
+              variant="neutral"
+              style={styles.callBtn}
+              leftIcon={<ArrowRightOrange width={18} height={18} />}
+              onPress={onWhatsApp}
+              disabled={!whatsapp}
+            />
           </View>
 
           <View style={styles.emailRow}>
@@ -223,21 +249,12 @@ const styles = StyleSheet.create({
     color: muted,
     marginBottom: 18,
   },
-  callBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: '#EEF0F4',
-    backgroundColor: '#FFFFFF',
+  whatsappCircle: {
+    backgroundColor: '#065F46',
   },
-  callBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: orange,
+  callBtn: {
+    borderColor: '#EEF0F4',
+    marginTop: 2,
   },
   emailRow: {
     flexDirection: 'row',
@@ -256,5 +273,4 @@ const styles = StyleSheet.create({
     color: orange,
     textDecorationLine: 'underline',
   },
-  pressed: { opacity: 0.92 },
 });

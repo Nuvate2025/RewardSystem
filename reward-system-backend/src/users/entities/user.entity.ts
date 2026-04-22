@@ -36,8 +36,31 @@ export class User {
   @Column({ name: 'pin_hash', type: 'text', nullable: true })
   pinHash!: string | null;
 
+  @Column({ name: 'quick_login_pin_enabled', type: 'boolean', default: true })
+  quickLoginPinEnabled!: boolean;
+
+  @Column({ name: 'notif_high_value_redemptions', type: 'boolean', default: true })
+  notifHighValueRedemptions!: boolean;
+
+  @Column({ name: 'notif_coupon_export_failures', type: 'boolean', default: true })
+  notifCouponExportFailures!: boolean;
+
+  @Column({ name: 'notif_suspicious_user_activity', type: 'boolean', default: false })
+  notifSuspiciousUserActivity!: boolean;
+
   @Column({ name: 'is_active', default: true })
   isActive!: boolean;
+
+  /**
+   * Staff gating:
+   * - SUPERADMIN is auto-approved at creation
+   * - OPERATIONAL_ADMIN must be approved by SUPERADMIN before access is granted
+   */
+  @Column({ name: 'staff_approved_at', type: 'datetime', nullable: true })
+  staffApprovedAt!: Date | null;
+
+  @Column({ name: 'staff_approved_by', type: 'text', nullable: true })
+  staffApprovedBy!: string | null;
 
   @Column({ name: 'loyalty_points', type: 'integer', default: 0 })
   loyaltyPoints!: number;

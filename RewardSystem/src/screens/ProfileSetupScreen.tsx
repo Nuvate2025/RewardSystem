@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AppButton, AppFieldLabel, AppPillInput } from '../components/ui';
 import type { RootStackScreenProps } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { isApiError, userFacingApiMessage } from '../api/client';
@@ -167,11 +168,10 @@ export function ProfileSetupScreen({
             Let's get started once you fill the details for your profile
           </Text>
 
-          <Text style={styles.label}>FULL NAME</Text>
-          <TextInput
-            style={styles.inputPill}
+          <AppFieldLabel text="FULL NAME" />
+          <AppPillInput
+            containerStyle={styles.inputPill}
             placeholder="Enter your full Name"
-            placeholderTextColor={colors.lightGray}
             value={fullName}
             onChangeText={setFullName}
           />
@@ -188,9 +188,9 @@ export function ProfileSetupScreen({
 
           {!isDealer ? (
             <>
-              <Text style={[styles.label, styles.labelGap]}>
-                YOUR PRIMARY TRADE
-              </Text>
+              <View style={styles.labelGap}>
+                <AppFieldLabel text="YOUR PRIMARY TRADE" />
+              </View>
               <View style={styles.tradeRow}>
                 <TradeCard
                   title="Contractor"
@@ -210,7 +210,9 @@ export function ProfileSetupScreen({
             </>
           ) : null}
 
-          <Text style={[styles.label, styles.labelGap]}>DELIVERY ADDRESS</Text>
+          <View style={styles.labelGap}>
+            <AppFieldLabel text="DELIVERY ADDRESS" />
+          </View>
           <TextInput
             style={styles.inputArea}
             placeholder="Enter your address"
@@ -221,18 +223,12 @@ export function ProfileSetupScreen({
             textAlignVertical="top"
           />
 
-          <Pressable
-            style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
+          <AppButton
+            text={saving ? 'Saving...' : 'Save and Continue  →'}
             disabled={saving}
-            onPress={onSave}>
-            <Text style={styles.ctaText}>
-              {saving
-                ? 'Saving...'
-                : isDealer
-                  ? 'Save and Continue  →'
-                  : 'Save and Continue  →'}
-            </Text>
-          </Pressable>
+            onPress={onSave}
+            style={styles.cta}
+          />
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </ScrollView>
@@ -308,25 +304,11 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     lineHeight: 22,
   },
-  label: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    color: colors.navyAlt,
-    marginBottom:10,
-  },
   labelGap: {
     marginTop: 22,
   },
   inputPill: {
-    borderWidth: 1,
-    borderColor: colors.borderInput,
-    borderRadius: 26,
-    paddingHorizontal: 18,
-    paddingVertical: 15,
-    fontSize: 16,
-    color: colors.navy,
-    backgroundColor: colors.white,
+    marginBottom: 0,
   },
   checkRow: {
     flexDirection: 'row',
@@ -420,28 +402,7 @@ const styles = StyleSheet.create({
     minHeight: 120,
     backgroundColor: colors.white,
   },
-  cta: {
-    marginTop: 28,
-    backgroundColor: colors.primaryOrange,
-    borderRadius: 28,
-    paddingVertical: 16,
-    alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.primaryOrange,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
-      },
-      android: { elevation: 6 },
-    }),
-  },
-  ctaPressed: { opacity: 0.92 },
-  ctaText: {
-    color: colors.white,
-    fontSize: 17,
-    fontWeight: '700',
-  },
+  cta: { marginTop: 28 },
   error: {
     marginTop: 12,
     fontSize: 13,

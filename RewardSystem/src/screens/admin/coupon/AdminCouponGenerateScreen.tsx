@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -16,9 +16,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AdminHeader } from '../components/AdminHeader';
 import type { AdminCouponStackParamList } from '../../../navigation/types';
 import { adminUi } from '../../../theme/adminUi';
-import { generateCouponBatch } from '../../../api/coupons';
+import { generateCouponBatch, listCoupons } from '../../../api/coupons';
 import { isApiError, userFacingApiMessage } from '../../../api/client';
 import { randomBatchDisplayNumber } from './couponGenerationUtils';
+import { ChevronDownSmall } from '../../../assets/svgs';
 
 type Nav = NativeStackNavigationProp<
   AdminCouponStackParamList,
@@ -41,6 +42,9 @@ export function AdminCouponGenerateScreen() {
   const [qtyRaw, setQtyRaw] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [recentActiveCoupons, setRecentActiveCoupons] = useState<number | null>(
+    null,
+  );
 
   const quantity = useMemo(() => {
     const n = parseInt(qtyRaw.replace(/[^\d]/g, ''), 10);
@@ -53,6 +57,20 @@ export function AdminCouponGenerateScreen() {
   const goDashboard = () => {
     navigation.getParent()?.navigate('AdminHome');
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    listCoupons({ status: 'ACTIVE', take: 200 })
+      .then((rows) => {
+        if (!cancelled) setRecentActiveCoupons(rows.length);
+      })
+      .catch(() => {
+        if (!cancelled) setRecentActiveCoupons(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const onGenerateBatch = async () => {
     setError(null);
@@ -102,6 +120,11 @@ export function AdminCouponGenerateScreen() {
           Define the parameters for your new industrial coupon batch. Values
           are calculated instantly.
         </Text>
+        {recentActiveCoupons != null ? (
+          <Text style={styles.subtleStat}>
+            Active coupons in system: {formatInt(recentActiveCoupons)}
+          </Text>
+        ) : null}
 
         <Text style={styles.fieldLabel}>COUPON SLAB VALUE</Text>
         <Pressable
@@ -109,6 +132,8 @@ export function AdminCouponGenerateScreen() {
             styles.selectField,
             pressed && styles.selectFieldPressed,
           ]}
+          accessibilityRole="button"
+          accessibilityLabel="Select coupon slab value"
           onPress={() => setSlabOpen(true)}>
           <Text
             style={
@@ -118,7 +143,9 @@ export function AdminCouponGenerateScreen() {
               ? `${formatInt(slabPts)} pts`
               : 'Select Value (e.g., 1000, 2000)'}
           </Text>
-          <Text style={styles.chevron}>{'\u2304'}</Text>
+          <View style={styles.chevronWrap} pointerEvents="none">
+            <ChevronDownSmall width={18} height={18} />
+          </View>
         </Pressable>
 
         <Text style={styles.fieldLabel}>NUMBER OF COUPONS</Text>
@@ -137,11 +164,16 @@ export function AdminCouponGenerateScreen() {
 
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>TOTAL VALUE OF THE BATCH</Text>
-          <Text style={styles.summaryValue}>
-            {formatInt(totalPts)} PTS
-          </Text>
-          <View style={styles.infoCallout}>
-            <Text style={styles.infoIcon}>{'\u2139'}</Text>
+          <View style={styles.summaryValueRow}>
+            <Text style={styles.summaryValueNum}>{formatInt(totalPts)}</Text>
+            <Text style={styles.summaryValueUnit}>PTS</Text>
+          </View>
+
+          <View style={styles.infoPill}>
+            <View style={styles.infoBadge} accessibilityLabel="Info">
+              {/* TODO: replace with provided SVG info icon */}
+              <View style={styles.infoBadgeDot} />
+            </View>
             <Text style={styles.infoText}>
               Generating this batch will authorize{' '}
               <Text style={styles.infoBold}>
@@ -161,12 +193,15 @@ export function AdminCouponGenerateScreen() {
             pressed && !generating && styles.primaryBtnPressed,
           ]}
           disabled={generating}
+          accessibilityRole="button"
+          accessibilityLabel="Generate coupon batch"
           onPress={() => { onGenerateBatch().catch(() => {}); }}>
           {generating ? (
             <ActivityIndicator color={adminUi.white} />
           ) : (
             <>
-              <Text style={styles.primaryIcon}>{'\u26A1'}</Text>
+              {/* TODO: replace with provided SVG lightning icon */}
+              <View style={styles.primaryIconPlaceholder} />
               <Text style={styles.primaryBtnText}>Generate Batch</Text>
             </>
           )}
@@ -215,6 +250,13 @@ const styles = StyleSheet.create({
     color: adminUi.labelMuted,
     marginBottom: 24,
   },
+  subtleStat: {
+    fontSize: 12,
+    color: adminUi.labelMuted,
+    marginTop: -10,
+    marginBottom: 18,
+    fontWeight: '600',
+  },
   fieldLabel: {
     fontSize: 11,
     fontWeight: '700',
@@ -226,10 +268,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: adminUi.white,
-    borderWidth: 1,
-    borderColor: adminUi.borderInput,
-    borderRadius: adminUi.radiusMd,
+    backgroundColor: adminUi.engageBadgeBg,
+    borderWidth: 0,
+    borderRadius: 18,
     paddingHorizontal: 16,
     paddingVertical: 16,
     marginBottom: 20,
@@ -244,16 +285,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: adminUi.lightGray,
   },
-  chevron: {
-    fontSize: 18,
-    color: adminUi.labelMuted,
-    marginTop: -6,
-  },
+  chevronWrap: { marginLeft: 10 },
   input: {
-    backgroundColor: adminUi.white,
-    borderWidth: 1,
-    borderColor: adminUi.borderInput,
-    borderRadius: adminUi.radiusMd,
+    backgroundColor: adminUi.engageBadgeBg,
+    borderWidth: 0,
+    borderRadius: 18,
     paddingHorizontal: 16,
     paddingVertical: 16,
     fontSize: 16,
@@ -261,46 +297,68 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   summaryCard: {
-    borderRadius: adminUi.radiusLg,
+    borderRadius: 22,
+    backgroundColor: adminUi.cardBg,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    marginBottom: 18,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
-    backgroundColor: '#F8FAFC',
-    padding: 18,
-    marginBottom: 20,
+    borderColor: adminUi.borderSoft,
+    ...adminUi.shadowCard,
   },
   summaryLabel: {
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.5,
-    color: adminUi.navyAlt,
+    color: adminUi.labelMuted,
     marginBottom: 8,
   },
-  summaryValue: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: adminUi.navyAlt,
-    marginBottom: 14,
-  },
-  infoCallout: {
+  summaryValueRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#EFF6FF',
-    borderRadius: 12,
-    padding: 12,
-    gap: 10,
+    alignItems: 'baseline',
+    gap: 8,
+    marginBottom: 12,
   },
-  infoIcon: {
+  summaryValueNum: {
+    fontSize: 40,
+    fontWeight: '900',
+    color: adminUi.navyAlt,
+  },
+  summaryValueUnit: {
     fontSize: 16,
-    color: '#2563EB',
-    fontWeight: '700',
+    fontWeight: '800',
+    color: adminUi.labelMuted,
+  },
+  infoPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: adminUi.engageBadgeBg,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 12,
   },
   infoText: {
     flex: 1,
-    fontSize: 13,
-    lineHeight: 19,
-    color: '#1E40AF',
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: adminUi.labelMuted,
   },
   infoBold: { fontWeight: '800' },
+  infoBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#E9E1D6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoBadgeDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#C4A882',
+  },
   error: {
     color: '#B45309',
     fontSize: 14,
@@ -313,13 +371,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
     backgroundColor: adminUi.accentOrange,
-    borderRadius: adminUi.radiusLg,
+    borderRadius: 999,
     paddingVertical: 16,
-    marginTop: 8,
+    marginTop: 10,
+    ...adminUi.shadowCta,
   },
   primaryBtnPressed: { opacity: 0.92 },
   primaryBtnDisabled: { opacity: 0.6 },
-  primaryIcon: { fontSize: 18 },
+  primaryIconPlaceholder: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+  },
   primaryBtnText: {
     color: adminUi.white,
     fontSize: 17,

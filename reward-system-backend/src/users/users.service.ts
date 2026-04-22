@@ -1,9 +1,12 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 
@@ -32,6 +35,15 @@ export class UsersService {
     return this.usersRepo.findOne({
       where: { phone },
     });
+  }
+
+  async countUsersWithRole(roleName: string): Promise<number> {
+    const name = roleName.trim().toUpperCase();
+    return this.usersRepo
+      .createQueryBuilder('u')
+      .leftJoin('u.roles', 'r')
+      .where('UPPER(r.name) = :name', { name })
+      .getCount();
   }
 
   async createLocalUser(params: {
@@ -116,8 +128,86 @@ export class UsersService {
     return this.usersRepo.save(user);
   }
 
+  async approveStaffUser(params: {
+    userId: string;
+    approvedBy: string;
+    approvedAt?: Date;
+  }): Promise<User> {
+    const user = await this.findById(params.userId);
+    if (!user) throw new NotFoundException('User not found');
+    user.staffApprovedAt = params.approvedAt ?? new Date();
+    user.staffApprovedBy = params.approvedBy;
+    return this.usersRepo.save(user);
+  }
+
   async setPinHash(userId: string, pinHash: string): Promise<void> {
     const res = await this.usersRepo.update({ id: userId }, { pinHash });
     if (!res.affected) throw new NotFoundException('User not found');
+  }
+
+  async setPasswordHash(userId: string, passwordHash: string): Promise<void> {
+    const res = await this.usersRepo.update({ id: userId }, { passwordHash });
+    if (!res.affected) throw new NotFoundException('User not found');
+  }
+
+  async changePassword(params: {
+    userId: string;
+    currentPassword: string;
+    newPassword: string;
+  }) {
+    const user = await this.findById(params.userId);
+    if (!user) throw new NotFoundException('User not found');
+    const ok = await bcrypt.compare(params.currentPassword, user.passwordHash);
+    if (!ok) throw new UnauthorizedException('Current password is incorrect');
+    if (params.currentPassword === params.newPassword) {
+      throw new BadRequestException(
+        'New password must be different from current password',
+      );
+    }
+    user.passwordHash = await bcrypt.hash(params.newPassword, 12);
+    await this.usersRepo.save(user);
+    return { ok: true };
+  }
+
+  async getAdminPreferences(userId: string) {
+    const user = await this.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+    return {
+      quickLoginPinEnabled: user.quickLoginPinEnabled ?? true,
+      notifications: {
+        highValueRedemptions: user.notifHighValueRedemptions ?? true,
+        couponExportFailures: user.notifCouponExportFailures ?? true,
+        suspiciousUserActivity: user.notifSuspiciousUserActivity ?? false,
+      },
+    };
+  }
+
+  async updateAdminPreferences(
+    userId: string,
+    patch: {
+      quickLoginPinEnabled?: boolean;
+      highValueRedemptions?: boolean;
+      couponExportFailures?: boolean;
+      suspiciousUserActivity?: boolean;
+    },
+  ) {
+    const user = await this.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+
+    if (patch.quickLoginPinEnabled !== undefined) {
+      user.quickLoginPinEnabled = patch.quickLoginPinEnabled;
+    }
+    if (patch.highValueRedemptions !== undefined) {
+      user.notifHighValueRedemptions = patch.highValueRedemptions;
+    }
+    if (patch.couponExportFailures !== undefined) {
+      user.notifCouponExportFailures = patch.couponExportFailures;
+    }
+    if (patch.suspiciousUserActivity !== undefined) {
+      user.notifSuspiciousUserActivity = patch.suspiciousUserActivity;
+    }
+
+    await this.usersRepo.save(user);
+    return this.getAdminPreferences(userId);
   }
 }

@@ -10,14 +10,27 @@ export class RewardsSeeder implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    // Minimal set based on screenshots. Images can be wired later.
+    // Slab rewards for worker redemption flow.
     await this.upsert({
-      title: 'Levelling System',
+      title: 'Worker Slab Reward - 5,000',
       description:
-        'Heavy-duty 18V brushless motor with 3 modes and hard-case carry set.',
+        'Standard redemption slab for workers.',
       pointsCost: 5000,
       imageUrl: null,
     });
+    await this.upsert({
+      title: 'Worker Slab Reward - 10,000',
+      description: 'Mid-tier redemption slab for workers.',
+      pointsCost: 10000,
+      imageUrl: null,
+    });
+    await this.upsert({
+      title: 'Worker Slab Reward - 25,000',
+      description: 'High-tier redemption slab for workers.',
+      pointsCost: 25000,
+      imageUrl: null,
+    });
+    // Additional catalog entries (kept for admin previews/testing).
     await this.upsert({
       title: 'Industrial Putty Mixer Machine',
       description:

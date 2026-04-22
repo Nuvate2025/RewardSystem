@@ -46,6 +46,12 @@ export function userFacingApiMessage(text: string): string {
   if (/otp expired|otp not found|invalid otp/i.test(t)) {
     return 'OTP expired or invalid. Request a new code.';
   }
+  if (/not approved for management onboarding/i.test(t)) {
+    return 'Your mobile number is not approved for management onboarding.';
+  }
+  if (/management account not found/i.test(t)) {
+    return 'No management account found for this mobile number.';
+  }
   if (/coupon not found/i.test(t)) {
     return 'Invalid coupon code.';
   }
@@ -57,6 +63,18 @@ export function userFacingApiMessage(text: string): string {
   }
   if (/insufficient points/i.test(t)) {
     return 'Not enough points for this reward.';
+  }
+  if (/dealers cannot redeem directly/i.test(t)) {
+    return 'Dealers cannot redeem directly. Please contact your shop/admin.';
+  }
+  if (/workers can redeem only slab rewards/i.test(t)) {
+    return 'You can redeem only slab rewards: 5,000, 10,000, or 25,000 points.';
+  }
+  if (/current password is incorrect/i.test(t)) {
+    return 'Current password is incorrect.';
+  }
+  if (/new password must be different/i.test(t)) {
+    return 'New password should be different from current password.';
   }
   if (/cannot get\s*\/admin\/dashboard/i.test(t)) {
     return (
@@ -219,6 +237,27 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
   } catch (e) {
     const detail = String((e as Error)?.message ?? e);
     console.warn(`[API] Network error PUT ${API_BASE_URL}${path}`, detail);
+    throw new ApiError(networkErrorUserMessage(detail), 0, detail);
+  }
+  const text = await res.text();
+  const json = safeJsonParse(text);
+  if (!res.ok) {
+    throw new ApiError(messageFromErrorBody(json), res.status, json);
+  }
+  return json as T;
+}
+
+export async function apiDelete<T>(path: string): Promise<T> {
+  let res: Response;
+  try {
+    console.log(`[API] DELETE ${API_BASE_URL}${path}`);
+    res = await fetchWithLocalFallback(`${API_BASE_URL}${path}`, {
+      method: 'DELETE',
+      headers: await buildHeaders(),
+    });
+  } catch (e) {
+    const detail = String((e as Error)?.message ?? e);
+    console.warn(`[API] Network error DELETE ${API_BASE_URL}${path}`, detail);
     throw new ApiError(networkErrorUserMessage(detail), 0, detail);
   }
   const text = await res.text();

@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { CelebrationBackground, ScannerWhite } from '../assets/svgs';
+import { AppButton } from './ui';
 import { colors } from '../theme/colors';
 
 type Props = {
@@ -51,18 +52,19 @@ export function ScanSuccessModal({
             <Text style={styles.balanceNum}>{newBalance}</Text>
           </Text>
 
-          <Pressable
-            style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
-            onPress={onScanAgain}>
-            <ScannerWhite width={22} height={22} />
-            <Text style={styles.primaryBtnText}>Scan Coupon</Text>
-          </Pressable>
+          <AppButton
+            text="Scan Coupon"
+            onPress={onScanAgain}
+            leftIcon={<ScannerWhite width={22} height={22} />}
+            style={styles.primaryBtn}
+          />
 
-          <Pressable
-            style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
-            onPress={onGoToWallet}>
-            <Text style={styles.secondaryBtnText}>Go to Wallet</Text>
-          </Pressable>
+          <AppButton
+            text="Go to Wallet"
+            onPress={onGoToWallet}
+            variant="neutral"
+            style={styles.secondaryBtn}
+          />
 
           <Pressable onPress={onDismiss} hitSlop={12}>
             <Text style={styles.dismiss}>Dismiss for now</Text>
@@ -150,52 +152,12 @@ const styles = StyleSheet.create({
     color: colors.navyAlt,
   },
   primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: colors.primaryOrange,
-    borderRadius: 28,
-    paddingVertical: 14,
+    marginTop: 0,
     width: '100%',
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.primaryOrange,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.35,
-        shadowRadius: 10,
-      },
-      android: { elevation: 6 },
-    }),
-  },
-  primaryBtnText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '700',
   },
   secondaryBtn: {
     marginTop: 12,
     width: '100%',
-    paddingVertical: 14,
-    borderRadius: 28,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.borderGray,
-    alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-      },
-      android: { elevation: 2 },
-    }),
-  },
-  secondaryBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.navyAlt,
   },
   dismiss: {
     marginTop: 16,

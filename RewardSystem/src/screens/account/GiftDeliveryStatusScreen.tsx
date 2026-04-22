@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrowLeft, IconGiftOrange } from '../../assets/svgs';
+import { AppChip } from '../../components/ui';
 import { listMyRedemptions } from '../../api/rewards';
 import type { ProfileStackParamList } from '../../navigation/types';
 import { colors } from '../../theme/colors';
@@ -29,6 +30,17 @@ function statusLabel(raw: string): string {
     .split('_')
     .map(w => w.charAt(0) + w.slice(1).toLowerCase())
     .join(' ');
+}
+
+function chipVariantFromStatus(status: string): 'success' | 'danger' | 'muted' {
+  const normalized = status.toLowerCase();
+  if (normalized.includes('delivered') || normalized.includes('shipped')) {
+    return 'success';
+  }
+  if (normalized.includes('cancel')) {
+    return 'danger';
+  }
+  return 'muted';
 }
 
 export function GiftDeliveryStatusScreen() {
@@ -118,7 +130,10 @@ export function GiftDeliveryStatusScreen() {
                 <Text style={styles.cardSub}>{item.sub}</Text>
               </View>
               <View style={styles.cardRight}>
-                <Text style={styles.badge}>{item.status}</Text>
+                <AppChip
+                  text={item.status}
+                  variant={chipVariantFromStatus(item.status)}
+                />
               </View>
             </Pressable>
           ))}
@@ -200,11 +215,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 12,
     color: muted,
-  },
-  badge: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: colors.primaryOrange,
   },
   cardRight: { alignItems: 'flex-end' },
 });

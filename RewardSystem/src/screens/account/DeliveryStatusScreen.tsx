@@ -44,6 +44,17 @@ function labelCase(s: string) {
     .join(' ');
 }
 
+function formatDateLabel(raw: string | null) {
+  if (!raw) return 'TBD';
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw;
+  return d.toLocaleDateString('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  });
+}
+
 export function DeliveryStatusScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
@@ -56,7 +67,9 @@ export function DeliveryStatusScreen() {
     title: string;
     points: number;
     trackingId: string;
-    status: string;
+    statusRaw: string;
+    statusLabel: string;
+    createdAt: string;
     etaText: string | null;
     addressLabel: string;
     addressSub: string;
@@ -82,7 +95,9 @@ export function DeliveryStatusScreen() {
           title: r.reward.title ?? 'Reward',
           points: r.reward.pointsCost,
           trackingId: r.trackingId,
-          status: labelCase(r.status),
+          statusRaw: r.status,
+          statusLabel: labelCase(r.status),
+          createdAt: r.createdAt,
           etaText: r.etaText ?? null,
           // Backend doesn’t return delivery address yet; keep UI shape.
           addressLabel: r.deliveryLabel ?? 'Delivery',
@@ -104,17 +119,28 @@ export function DeliveryStatusScreen() {
   );
 
   const steps = useMemo(() => {
-    // We only have a single status string from API; map it into 4-step timeline.
-    const s = (redemption?.status ?? '').toLowerCase();
+    const raw = redemption?.statusRaw ?? '';
+    const created = formatDateLabel(redemption?.createdAt ?? null);
+    const eta = formatDateLabel(redemption?.etaText ?? null);
     const idx =
-      s.includes('delivered') ? 3 : s.includes('way') ? 2 : s.includes('pack') ? 1 : 0;
+      raw === 'DELIVERED'
+        ? 3
+        : raw === 'SHIPPED'
+          ? 2
+          : raw === 'PROCESSING'
+            ? 1
+            : raw === 'CANCELLED'
+              ? 0
+              : 0;
     return [
-      { title: 'Placed order', date: 'Apr 10, 2026', active: idx >= 0 },
-      { title: 'Packing your order', date: 'Apr 11, 2026', active: idx >= 1 },
-      { title: 'Your Order is on the Way', date: 'Apr 10, 2026', active: idx >= 2 },
-      { title: 'Expected Delivery', date: 'Apr 15, 2026', active: idx >= 3 },
+      { title: 'Placed order', date: created, active: idx >= 0 },
+      { title: 'Packing your order', date: created, active: idx >= 1 },
+      { title: 'Your order is on the way', date: eta, active: idx >= 2 },
+      { title: 'Expected delivery', date: eta, active: idx >= 3 },
     ];
-  }, [redemption?.status]);
+  }, [redemption?.createdAt, redemption?.etaText, redemption?.statusRaw]);
+
+  const canCancelDelivery = redemption?.statusRaw === 'PROCESSING';
 
   return (
     <View style={[styles.root, { paddingTop: insets.top, backgroundColor: bg }]}>
@@ -189,11 +215,18 @@ export function DeliveryStatusScreen() {
                   <Text style={styles.metaValue}>#{redemption.trackingId}</Text>
                 </View>
                 <View style={styles.metaCol}>
+                  <Text style={styles.metaLabel}>STATUS</Text>
+                  <Text style={styles.metaValue}>{redemption.statusLabel}</Text>
+                </View>
+              </View>
+              <View style={styles.metaRow}>
+                <View style={styles.metaCol}>
                   <Text style={styles.metaLabel}>EXPECTED DELIVERY</Text>
                   <Text style={styles.metaValue}>
-                    {redemption.etaText ?? 'TBD'}
+                    {formatDateLabel(redemption.etaText)}
                   </Text>
                 </View>
+                <View style={styles.metaCol} />
               </View>
 
               <Text style={styles.sectionLabel}>DELIVERY DETAILS</Text>
@@ -206,14 +239,18 @@ export function DeliveryStatusScreen() {
               <Pressable
                 style={({ pressed }) => [
                   styles.rowBtn,
+                  !canCancelDelivery && styles.rowBtnDisabled,
                   pressed && styles.pressed,
                 ]}
+                disabled={!canCancelDelivery}
                 onPress={() => {
                   setCancelReason(null);
                   setCancelOpen(true);
                 }}>
-                <Text style={styles.rowBtnText}>Cancel Delivery</Text>
-                <ChevronRight strokeColor="#94A3B8" />
+                <Text style={styles.rowBtnText}>
+                  {canCancelDelivery ? 'Cancel Delivery' : 'Cancellation unavailable'}
+                </Text>
+                {canCancelDelivery ? <ChevronRight strokeColor="#94A3B8" /> : null}
               </Pressable>
 
               <Pressable
@@ -399,6 +436,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 14,
+  },
+  rowBtnDisabled: {
+    opacity: 0.45,
   },
   rowBtnText: { fontSize: 14, fontWeight: '700', color: text },
   link: { color: orange, fontWeight: '800' },

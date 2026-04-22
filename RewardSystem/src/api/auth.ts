@@ -1,19 +1,15 @@
 import { apiPost } from './client';
 
 /**
- * Mobile onboarding & PIN auth (see Figma Onboarding & Authentication).
+ * OTP-only authentication (new system).
  *
- * | Step | Screen / action      | Endpoint              | Body |
- * |------|----------------------|-----------------------|------|
- * | 1    | Sign up — send OTP   | POST /auth/otp/request | `{ phone, countryCode }` (10-digit national + e.g. "+91") |
- * | 2    | Sign up — verify OTP | POST /auth/otp/verify  | `{ phone, countryCode, code }` (6-digit OTP, not "pin") |
- * | 3    | Set PIN              | POST /auth/pin/set     | `{ verificationToken, pin }` → **accessToken** (JWT) |
- * | 4    | Login (return visits)| POST /auth/pin/login   | `{ phone, pin }` (10 digits; server uses +91 + phone) → **accessToken** |
- *
- * After step 3, the app uses the JWT from **setPin** and loads profile (`GET /users/me/profile`);
- * calling **pin/login** again right away is optional and only needed when signing in later.
- *
- * Web/admin flows use `POST /auth/register` and `POST /auth/login` (email + password) — not used in this app.
+ * - request OTP: POST /auth/otp/request
+ * - customer signup: POST /auth/customer/otp/signup
+ * - customer login:  POST /auth/customer/otp/login
+ * - ops admin signup: POST /auth/admin/otp/signup (returns pending approval)
+ * - staff login (superadmin/ops): POST /auth/admin/otp/login (ops gated by approval)
+ * - superadmin signup exists but is web-only (mobile should not expose it):
+ *   POST /auth/superadmin/otp/signup
  */
 
 export type RequestOtpResponse = {
@@ -22,17 +18,23 @@ export type RequestOtpResponse = {
   devCode?: string;
 };
 
-export type VerifyOtpResponse = {
-  verificationToken: string;
+export type AdminOtpSignupResponse = {
+  pendingApproval: boolean;
 };
 
-export type SetPinResponse = {
+export type AdminOtpLoginResponse = {
   accessToken: string;
   roles?: string[];
   permissions?: string[];
 };
 
-export type PinLoginResponse = {
+export type CustomerOtpSignupResponse = {
+  accessToken: string;
+  roles?: string[];
+  permissions?: string[];
+};
+
+export type CustomerOtpLoginResponse = {
   accessToken: string;
   roles?: string[];
   permissions?: string[];
@@ -42,15 +44,39 @@ export async function requestOtp(params: { phone: string; countryCode: string })
   return apiPost<RequestOtpResponse>('/auth/otp/request', params);
 }
 
-export async function verifyOtp(params: { phone: string; countryCode: string; code: string }) {
-  return apiPost<VerifyOtpResponse>('/auth/otp/verify', params);
+export async function signupAdminWithOtp(params: {
+  phone: string;
+  countryCode: string;
+  code: string;
+  fullName?: string | null;
+  email?: string | null;
+}) {
+  return apiPost<AdminOtpSignupResponse>('/auth/admin/otp/signup', params);
 }
 
-export async function setPin(params: { verificationToken: string; pin: string }) {
-  return apiPost<SetPinResponse>('/auth/pin/set', params);
+export async function loginAdminWithOtp(params: {
+  phone: string;
+  countryCode: string;
+  code: string;
+}) {
+  return apiPost<AdminOtpLoginResponse>('/auth/admin/otp/login', params);
 }
 
-export async function loginWithPin(params: { phone: string; pin: string }) {
-  return apiPost<PinLoginResponse>('/auth/pin/login', params);
+export async function signupCustomerWithOtp(params: {
+  phone: string;
+  countryCode: string;
+  code: string;
+  fullName?: string | null;
+  email?: string | null;
+}) {
+  return apiPost<CustomerOtpSignupResponse>('/auth/customer/otp/signup', params);
+}
+
+export async function loginCustomerWithOtp(params: {
+  phone: string;
+  countryCode: string;
+  code: string;
+}) {
+  return apiPost<CustomerOtpLoginResponse>('/auth/customer/otp/login', params);
 }
 

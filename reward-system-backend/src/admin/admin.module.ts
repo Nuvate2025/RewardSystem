@@ -12,7 +12,11 @@ import { AdminService } from './admin.service';
   imports: [
     UsersModule,
     RbacModule,
-    TypeOrmModule.forFeature([PointsTransaction, Redemption, User]),
+    TypeOrmModule.forFeature([
+      PointsTransaction,
+      Redemption,
+      User,
+    ]),
   ],
   controllers: [AdminController],
   providers: [AdminService],

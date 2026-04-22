@@ -69,7 +69,7 @@ export function SplashScreen({
         if (!cancelled) {
           setBootError('Unable to start. Check connection and try again.');
           setTimeout(() => {
-            if (!cancelled) navigation.replace('SignUp');
+            if (!cancelled) navigation.replace('CustomerAuth');
           }, 1200);
         }
       }

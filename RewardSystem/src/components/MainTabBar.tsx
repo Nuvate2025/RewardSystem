@@ -15,10 +15,10 @@ import {
 } from '../assets/svgs';
 import type { MainTabParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
-import { figma } from '../theme/figmaTokens';
+import { tabBarTokens } from '../theme/tabBarTokens';
 
-const activeColor = colors.navyAlt;
-const inactiveColor = colors.mutedGray;
+const activeColor = tabBarTokens.activeColor;
+const inactiveColor = tabBarTokens.inactiveColor;
 const iconSize = 24;
 
 function TabIcon({
@@ -123,44 +123,39 @@ export function MainTabBar({ state, navigation }: BottomTabBarProps) {
 
 const styles = StyleSheet.create({
   bar: {
-    backgroundColor: colors.white,
+    backgroundColor: tabBarTokens.background,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.borderGray,
+    borderTopColor: tabBarTokens.borderColor,
     paddingTop: 6,
   },
-  barShadow: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-  },
+  barShadow: tabBarTokens.shadow,
   row: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    paddingHorizontal: 8,
+    paddingHorizontal: tabBarTokens.rowPaddingHorizontal,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: tabBarTokens.itemPaddingVertical,
   },
   tabItemScan: {
-    marginTop: -18,
+    marginTop: tabBarTokens.floatingOffsetY,
   },
   tabLabel: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: tabBarTokens.labelSize,
+    fontWeight: tabBarTokens.labelWeight,
     marginTop: 4,
   },
   scanOuter: {
-    width: 58,
-    height: 58,
-    borderRadius: 16,
-    backgroundColor: colors.primaryOrange,
+    width: tabBarTokens.floatingSize,
+    height: tabBarTokens.floatingSize,
+    borderRadius: tabBarTokens.floatingRadius,
+    backgroundColor: tabBarTokens.floatingBg,
     alignItems: 'center',
     justifyContent: 'center',
-    ...figma.shadowCta,
+    ...tabBarTokens.floatingShadow,
   },
   scanOuterActive: {
     transform: [{ scale: 1.02 }],

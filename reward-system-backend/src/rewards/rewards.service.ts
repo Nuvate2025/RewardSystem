@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Reward } from './entities/reward.entity';
@@ -9,6 +14,8 @@ import { randomBytes } from 'crypto';
 
 @Injectable()
 export class RewardsService {
+  private static readonly WORKER_SLAB_POINTS = new Set([5000, 10000, 25000]);
+
   constructor(
     private readonly dataSource: DataSource,
     @InjectRepository(Reward) private readonly rewardsRepo: Repository<Reward>,
@@ -18,19 +25,36 @@ export class RewardsService {
     private readonly points: PointsService,
   ) {}
 
-  async list(params: { maxPoints?: number } = {}) {
+  async list(params: { maxPoints?: number; userId?: string } = {}) {
     const where = { isActive: true } as const;
-    const rewards = await this.rewardsRepo.find({
+    let rewards = await this.rewardsRepo.find({
       where,
       order: { pointsCost: 'ASC', title: 'ASC' },
       take: 200,
     });
+    if (params.userId) {
+      const user = await this.usersRepo.findOne({
+        where: { id: params.userId },
+        relations: { roles: true },
+      });
+      if (user && this.isWorkerUser(user) && !this.isDealerUser(user)) {
+        rewards = rewards.filter((r) =>
+          RewardsService.WORKER_SLAB_POINTS.has(r.pointsCost),
+        );
+      }
+    }
     if (params.maxPoints != null && Number.isFinite(params.maxPoints)) {
       return rewards.filter(
         (r) => r.pointsCost <= (params.maxPoints as number),
       );
     }
     return rewards;
+  }
+
+  getWorkerSlabs() {
+    return {
+      slabs: [...RewardsService.WORKER_SLAB_POINTS].sort((a, b) => a - b),
+    };
   }
 
   async getById(id: string) {
@@ -54,11 +78,29 @@ export class RewardsService {
 
       const user = await usersRepo.findOne({ where: { id: params.userId } });
       if (!user) throw new NotFoundException('User not found');
+      const roleAwareUser = await usersRepo.findOne({
+        where: { id: user.id },
+        relations: { roles: true },
+      });
+      if (!roleAwareUser) throw new NotFoundException('User not found');
 
       const reward = await rewardsRepo.findOne({
         where: { id: params.rewardId, isActive: true },
       });
       if (!reward) throw new NotFoundException('Reward not found');
+      if (this.isDealerUser(roleAwareUser)) {
+        throw new ForbiddenException(
+          'Dealers cannot redeem directly. Contact your shop/admin.',
+        );
+      }
+      if (
+        this.isWorkerUser(roleAwareUser) &&
+        !RewardsService.WORKER_SLAB_POINTS.has(reward.pointsCost)
+      ) {
+        throw new BadRequestException(
+          'Workers can redeem only slab rewards (5000, 10000, 25000 points).',
+        );
+      }
 
       // Debit points (creates transaction)
       await this.points.credit({
@@ -134,5 +176,13 @@ export class RewardsService {
     // Matches the "BB-88492" style from design (prefix + 5 digits).
     const digits = (randomBytes(3).readUIntBE(0, 3) % 90000) + 10000;
     return `BB-${digits}`;
+  }
+
+  private isDealerUser(user: User): boolean {
+    return (user.roles ?? []).some((r) => r.name === 'DEALER');
+  }
+
+  private isWorkerUser(user: User): boolean {
+    return (user.roles ?? []).some((r) => r.name === 'CUSTOMER');
   }
 }

@@ -268,6 +268,7 @@ export class AdminService {
         profession: u.profession ?? null,
         walletBalance: u.loyaltyPoints ?? 0,
         status: u.isActive ? 'ACTIVE' : 'SUSPENDED',
+        staffApprovedAt: (u as any).staffApprovedAt ?? null,
       })),
     };
   }
@@ -286,8 +287,32 @@ export class AdminService {
       loyaltyPoints: u.loyaltyPoints ?? 0,
       phone: u.phone ?? null,
       deliveryAddress: u.deliveryAddress ?? null,
+      staffApprovedAt: (u as any).staffApprovedAt ?? null,
+      staffApprovedBy: (u as any).staffApprovedBy ?? null,
       updatedAt: u.updatedAt,
       createdAt: u.createdAt,
+    };
+  }
+
+  async approveOperationalAdmin(params: { userId: string; approvedBy: string }) {
+    const u = await this.usersRepo.findOne({
+      where: { id: params.userId },
+      relations: { roles: true },
+    });
+    if (!u) throw new NotFoundException('User not found');
+    const isOps = (u.roles ?? []).some(
+      (r) => String(r.name).toUpperCase() === 'OPERATIONAL_ADMIN',
+    );
+    if (!isOps) throw new BadRequestException('User is not an Operational Admin');
+
+    const saved = await this.users.approveStaffUser({
+      userId: u.id,
+      approvedBy: params.approvedBy,
+    });
+    return {
+      id: saved.id,
+      staffApprovedAt: saved.staffApprovedAt,
+      staffApprovedBy: saved.staffApprovedBy,
     };
   }
 
@@ -446,6 +471,14 @@ export class AdminService {
       where: { status: 'PROCESSING' },
     });
 
+    const pendingOpsAdminApprovalsCount = await this.usersRepo
+      .createQueryBuilder('u')
+      .leftJoin('u.roles', 'r')
+      .where('UPPER(r.name) = :role', { role: 'OPERATIONAL_ADMIN' })
+      .andWhere('u.staffApprovedAt IS NULL')
+      .andWhere('u.isActive = :active', { active: true })
+      .getCount();
+
     const sumCouponIssued = async (from: Date, to: Date) => {
       const raw = await this.txRepo
         .createQueryBuilder('t')
@@ -511,6 +544,7 @@ export class AdminService {
 
     return {
       pendingApprovalsCount,
+      pendingOpsAdminApprovalsCount,
       pointsIssued: {
         totalLast7Days: issuedThis,
         percentVsPriorWeek: percentVsPriorPeriod(issuedThis, issuedPrior),
@@ -527,6 +561,35 @@ export class AdminService {
         count: couponsScannedToday,
         last5MinutesCount: couponScansLast5Minutes,
       },
+    };
+  }
+
+  async listPendingOperationalAdmins(params?: { take?: number; offset?: number }) {
+    const take = Math.max(1, Math.min(100, Number(params?.take ?? 20)));
+    const offset = Math.max(0, Math.min(10_000, Number(params?.offset ?? 0)));
+
+    const qb = this.usersRepo
+      .createQueryBuilder('u')
+      .leftJoin('u.roles', 'r')
+      .where('UPPER(r.name) = :role', { role: 'OPERATIONAL_ADMIN' })
+      .andWhere('u.staffApprovedAt IS NULL')
+      .andWhere('u.isActive = :active', { active: true })
+      .orderBy('u.createdAt', 'DESC');
+
+    const total = await qb.getCount();
+    const rows = await qb.skip(offset).take(take).getMany();
+    const hasMore = offset + rows.length < total;
+
+    return {
+      total,
+      hasMore,
+      items: rows.map((u) => ({
+        id: u.id,
+        fullName: u.fullName ?? null,
+        email: u.email,
+        phone: u.phone ?? null,
+        createdAt: u.createdAt,
+      })),
     };
   }
 

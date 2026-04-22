@@ -189,6 +189,8 @@ export function AdminUserDetailScreen(_props: Props) {
 
         <Pressable
           style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.92 }]}
+          accessibilityRole="button"
+          accessibilityLabel="View user transaction ledger"
           onPress={() => navigation.navigate('AdminUserTransactions', { userId: params.userId })}>
           <IconReceiptDocOrange width={22} height={22} />
           <Text style={styles.primaryBtnTxt}>View Transaction Ledger</Text>
@@ -202,6 +204,8 @@ export function AdminUserDetailScreen(_props: Props) {
           <Pressable
             style={[styles.suspendRow, suspendSubmitting && { opacity: 0.5 }]}
             disabled={suspendSubmitting}
+            accessibilityRole="button"
+            accessibilityLabel="Suspend account"
             onPress={() => { setActionError(null); setSuspendOpen(true); }}>
             <Text style={styles.suspendIcon}>{'\u2298'}</Text>
             <Text style={styles.suspendTxt}>Suspend Account</Text>
@@ -210,6 +214,8 @@ export function AdminUserDetailScreen(_props: Props) {
           <Pressable
             style={[styles.activateRow, suspendSubmitting && { opacity: 0.5 }]}
             disabled={suspendSubmitting}
+            accessibilityRole="button"
+            accessibilityLabel="Reactivate account"
             onPress={() => { onActivate().catch(() => {}); }}>
             {suspendSubmitting ? (
               <ActivityIndicator color={adminUi.successGreen} />
@@ -249,6 +255,8 @@ export function AdminUserDetailScreen(_props: Props) {
                 suspendSubmitting && { opacity: 0.6 },
               ]}
               disabled={suspendSubmitting}
+              accessibilityRole="button"
+              accessibilityLabel="Confirm account suspension"
               onPress={() => { onConfirmSuspend().catch(() => {}); }}>
               {suspendSubmitting ? (
                 <ActivityIndicator color={adminUi.white} />
@@ -259,8 +267,10 @@ export function AdminUserDetailScreen(_props: Props) {
             <Pressable
               style={styles.modalCancelBtn}
               disabled={suspendSubmitting}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss suspension dialog"
               onPress={() => { setSuspendOpen(false); setSuspendReason(''); setActionError(null); }}>
-              <Text style={styles.modalCancelTxt}>Go to Wallet</Text>
+              <Text style={styles.modalCancelTxt}>Dismiss for now</Text>
             </Pressable>
           </View>
         </View>

@@ -12,10 +12,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackArrowLeft, CelebrationBackground, ReceiptOutline } from '../../assets/svgs';
+import { AppButton } from '../../components/ui';
 import type { CartStackParamList, MainTabParamList } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { SUPPORT } from '../account/accountFigmaData';
 
 type Nav = CompositeNavigationProp<
   NativeStackNavigationProp<CartStackParamList, 'RewardSuccess'>,
@@ -88,17 +90,18 @@ export function RewardSuccessScreen() {
           </View>
         </View>
 
-        <Pressable
-          style={({ pressed }) => [styles.walletBtn, pressed && styles.pressed]}
+        <AppButton
+          text="Go to Wallet"
+          variant="neutral"
+          style={styles.walletBtn}
           onPress={() =>
             navigation.navigate('Profile', { screen: 'TransactionHistory' })
-          }>
-          <Text style={styles.walletText}>Go to Wallet</Text>
-        </Pressable>
+          }
+        />
 
         <View style={styles.supportRow}>
           <Text style={styles.supportMuted}>For Updates </Text>
-          <Pressable onPress={() => Linking.openURL('mailto:support@example.com')}>
+          <Pressable onPress={() => Linking.openURL(`mailto:${SUPPORT.email}`)}>
             <Text style={styles.supportLink}>Contact Support</Text>
           </Pressable>
         </View>
@@ -211,22 +214,12 @@ const styles = StyleSheet.create({
   walletBtn: {
     marginTop: 32,
     width: '100%',
-    paddingVertical: 16,
-    borderRadius: 28,
-    backgroundColor: colors.white,
-    borderWidth: 1,
     borderColor: cardBorder,
-    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 2,
-  },
-  walletText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: textPrimary,
   },
   supportRow: {
     marginTop: 20,
@@ -245,5 +238,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textDecorationLine: 'underline',
   },
-  pressed: { opacity: 0.92 },
 });

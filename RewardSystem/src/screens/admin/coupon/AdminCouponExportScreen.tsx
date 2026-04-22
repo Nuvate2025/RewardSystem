@@ -15,14 +15,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AdminHeader } from '../components/AdminHeader';
 import type { AdminCouponStackParamList } from '../../../navigation/types';
 import { adminUi } from '../../../theme/adminUi';
+import { CheckCircle, Download, Pdf } from '../../../assets/svgs';
 
 type Nav = NativeStackNavigationProp<
   AdminCouponStackParamList,
   'AdminCouponExport'
 >;
 type R = RouteProp<AdminCouponStackParamList, 'AdminCouponExport'>;
-
-type ExportFormat = 'pdf' | 'csv';
 
 function formatInt(n: number): string {
   return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(
@@ -35,12 +34,11 @@ export function AdminCouponExportScreen() {
   const navigation = useNavigation<Nav>();
   const { params } = useRoute<R>();
   const { batchId, createdAtLabel, totalCoupons, totalPts, slabPts } = params;
-  const [format, setFormat] = useState<ExportFormat>('pdf');
 
   const onDownload = () => {
     Alert.alert(
       'Export',
-      `Demo: would download ${format.toUpperCase()} for batch ${batchId} (${formatInt(totalCoupons)} coupons).`,
+      `Demo: would download PDF for batch ${batchId} (${formatInt(totalCoupons)} coupons).`,
       [{ text: 'OK' }],
     );
   };
@@ -65,7 +63,10 @@ export function AdminCouponExportScreen() {
         <Text style={styles.pageTitle}>Export Coupon Batch</Text>
 
         <View style={styles.detailCard}>
-          <Text style={styles.watermark}>{'\u{1F39F}'}</Text>
+          <View style={styles.watermark} pointerEvents="none">
+            {/* If you want an exact watermark icon, share the SVG and I’ll swap it. */}
+            <Pdf width={92} height={92} opacity={0.06} />
+          </View>
           <View style={styles.detailRow}>
             <Text style={styles.detailLbl}>BATCH ID</Text>
             <Text style={styles.detailVal}>#{batchId}</Text>
@@ -91,52 +92,34 @@ export function AdminCouponExportScreen() {
 
         <Text style={styles.formatSectionLbl}>SELECT EXPORT FORMAT</Text>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.formatRow,
-            format === 'pdf' && styles.formatRowSelected,
-            pressed && styles.formatRowPressed,
-          ]}
-          onPress={() => setFormat('pdf')}>
-          <Text style={styles.formatIcon}>{'\u{1F4C4}'}</Text>
+        <View style={[styles.formatRow, styles.formatRowSelected]}>
+          <View style={styles.formatIconWrap}>
+            <Pdf width={22} height={22} />
+          </View>
           <Text style={styles.formatTitle}>PDF (Print Ready)</Text>
-          {format === 'pdf' ? (
-            <Text style={styles.check}>{'\u2713'}</Text>
-          ) : (
-            <View style={styles.checkPlaceholder} />
-          )}
-        </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.formatRow,
-            format === 'csv' && styles.formatRowSelected,
-            pressed && styles.formatRowPressed,
-            { marginTop: 12 },
-          ]}
-          onPress={() => setFormat('csv')}>
-          <Text style={styles.formatIcon}>{'\u{1F4CA}'}</Text>
-          <Text style={styles.formatTitle}>Transaction History</Text>
-          {format === 'csv' ? (
-            <Text style={styles.check}>{'\u2713'}</Text>
-          ) : (
-            <View style={styles.checkPlaceholder} />
-          )}
-        </Pressable>
+          <View style={styles.checkWrap}>
+            <CheckCircle width={22} height={22} />
+          </View>
+        </View>
 
         <Pressable
           style={({ pressed }) => [
             styles.primaryBtn,
             pressed && styles.primaryBtnPressed,
           ]}
+          accessibilityRole="button"
+          accessibilityLabel="Download exported coupon batch"
           onPress={onDownload}>
-          <Text style={styles.downloadIcon}>{'\u2B07'}</Text>
+          <Download width={20} height={20} />
           <Text style={styles.primaryBtnText}>Download</Text>
         </Pressable>
 
-        <Pressable onPress={onDiscard} style={styles.discardWrap}>
+        <Pressable
+          onPress={onDiscard}
+          style={styles.discardWrap}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel and discard export">
           <Text style={styles.discard}>Cancel/Discard</Text>
-          <Text style={styles.discardArrow}>{'\u2192'}</Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -147,26 +130,25 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: adminUi.screenBg },
   scroll: { paddingHorizontal: 20, paddingTop: 8 },
   pageTitle: {
-    fontSize: 22,
-    fontWeight: '800',
+    fontSize: 32,
+    fontWeight: '900',
     color: adminUi.navyAlt,
     marginBottom: 18,
   },
   detailCard: {
-    borderRadius: adminUi.radiusLg,
+    borderRadius: 28,
     backgroundColor: adminUi.cardBg,
-    padding: 18,
-    marginBottom: 28,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    marginBottom: 26,
     ...adminUi.shadowCard,
     position: 'relative',
     overflow: 'hidden',
   },
   watermark: {
     position: 'absolute',
-    right: 8,
-    top: 8,
-    fontSize: 44,
-    opacity: 0.12,
+    right: 10,
+    top: 10,
   },
   detailRow: { marginBottom: 14 },
   detailLbl: {
@@ -182,8 +164,8 @@ const styles = StyleSheet.create({
     color: adminUi.navyAlt,
   },
   detailValOrange: {
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: 28,
+    fontWeight: '900',
     color: adminUi.accentOrange,
   },
   slabHint: {
@@ -201,8 +183,8 @@ const styles = StyleSheet.create({
   formatRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: adminUi.radiusMd,
-    backgroundColor: adminUi.offWhite,
+    borderRadius: 18,
+    backgroundColor: adminUi.engageBadgeBg,
     paddingVertical: 16,
     paddingHorizontal: 14,
     borderWidth: 2,
@@ -213,54 +195,48 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF7ED',
   },
   formatRowPressed: { opacity: 0.92 },
-  formatIcon: { fontSize: 26, marginRight: 12 },
+  formatIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: adminUi.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: adminUi.borderSoft,
+  },
   formatTitle: {
     flex: 1,
     fontSize: 16,
     fontWeight: '700',
     color: adminUi.navyAlt,
   },
-  check: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: adminUi.accentOrange,
-  },
-  checkPlaceholder: { width: 18 },
+  checkWrap: { marginLeft: 10 },
   primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
     backgroundColor: adminUi.accentOrange,
-    borderRadius: adminUi.radiusLg,
+    borderRadius: adminUi.radiusPill,
     paddingVertical: 16,
-    marginTop: 28,
+    marginTop: 26,
+    ...adminUi.shadowCta,
   },
   primaryBtnPressed: { opacity: 0.92 },
-  downloadIcon: {
-    fontSize: 18,
-    color: adminUi.white,
-    fontWeight: '800',
-  },
   primaryBtnText: {
     color: adminUi.white,
     fontSize: 17,
     fontWeight: '800',
   },
   discardWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
     marginTop: 16,
+    alignItems: 'center',
   },
   discard: {
     fontSize: 15,
     fontWeight: '700',
-    color: adminUi.accentOrange,
-  },
-  discardArrow: {
-    fontSize: 16,
     color: adminUi.accentOrange,
   },
 });

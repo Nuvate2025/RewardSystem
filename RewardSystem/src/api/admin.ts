@@ -2,6 +2,7 @@ import { apiGet } from './client';
 
 export type AdminDashboardResponse = {
   pendingApprovalsCount: number;
+  pendingOpsAdminApprovalsCount: number;
   pointsIssued: {
     totalLast7Days: number;
     percentVsPriorWeek: number;

@@ -3,8 +3,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import React from 'react';
 import {
+  FlatList,
   Pressable,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -18,6 +18,7 @@ import {
   formatBatchCreatedLabel,
   randomExportBatchId,
 } from './couponGenerationUtils';
+import { ChevronRight, Scanner, TxTicketOrange } from '../../../assets/svgs';
 
 type Nav = NativeStackNavigationProp<
   AdminCouponStackParamList,
@@ -62,12 +63,7 @@ export function AdminCouponPreviewScreen() {
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" />
       <AdminHeader title="Coupon Batch Preview" />
-      <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingBottom: 24 + insets.bottom },
-        ]}
-        showsVerticalScrollIndicator={false}>
+      <View style={[styles.content, { paddingBottom: insets.bottom }]}>
         <View style={styles.heroCard}>
           <View style={styles.heroAccent} />
           <View style={styles.heroBody}>
@@ -75,7 +71,8 @@ export function AdminCouponPreviewScreen() {
             <Text style={styles.heroCount}>{formatInt(quantity)}</Text>
             <Text style={styles.heroSub}>Coupons Generated</Text>
             <View style={styles.valueBadge}>
-              <Text style={styles.valueBadgeIcon}>{'\u2728'}</Text>
+              {/* If you want a different icon, share the SVG and I’ll swap it. */}
+              <TxTicketOrange width={18} height={18} />
               <Text style={styles.valueBadgeText}>
                 Value: {formatInt(slabPts)} Pts each
               </Text>
@@ -84,56 +81,75 @@ export function AdminCouponPreviewScreen() {
         </View>
 
         <Text style={styles.sectionTitle}>Live Preview</Text>
-        <View style={styles.listCard}>
-          {visibleCodes.map((item, index) => (
-            <React.Fragment key={`${item}-${index}`}>
-              {index > 0 ? <View style={styles.rowSep} /> : null}
-              <Pressable
-                style={({ pressed }) => [
-                  styles.row,
-                  pressed && styles.rowPressed,
-                ]}>
-                <Text style={styles.qrGlyph}>{'\u25A6'}</Text>
-                <View style={styles.rowMid}>
-                  <Text style={styles.code}>{item}</Text>
-                  <Text style={styles.batchSub}>
-                    Active Batch #{batchNumber}
-                  </Text>
-                </View>
-                <Text style={styles.chevron}>{'\u203A'}</Text>
-              </Pressable>
-            </React.Fragment>
-          ))}
-        </View>
-        {moreCount > 0 ? (
-          <Text style={styles.moreHint}>
-            + {formatInt(moreCount)} more in this batch (shown in export)
-          </Text>
-        ) : null}
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.primaryBtn,
-            pressed && styles.primaryBtnPressed,
-          ]}
-          onPress={onConfirm}>
-          <Text style={styles.primaryBtnText}>Confirm</Text>
-        </Pressable>
-        <Pressable onPress={onDiscard} style={styles.discardWrap}>
-          <Text style={styles.discard}>Cancel/Discard</Text>
-          <Text style={styles.discardArrow}>{'\u2192'}</Text>
-        </Pressable>
-      </ScrollView>
+        <View style={styles.listWrap}>
+          <View style={styles.listCard}>
+            <FlatList
+              data={visibleCodes}
+              keyExtractor={(item, index) => `${item}-${index}`}
+              showsVerticalScrollIndicator={false}
+              ItemSeparatorComponent={() => <View style={styles.rowSep} />}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.row,
+                    pressed && styles.rowPressed,
+                  ]}>
+                  <View style={styles.qrCircle}>
+                    <Scanner width={22} height={22} />
+                  </View>
+                  <View style={styles.rowMid}>
+                    <Text style={styles.code}>{item}</Text>
+                    <Text style={styles.batchSub}>
+                      Active Batch #{batchNumber}
+                    </Text>
+                  </View>
+                  <ChevronRight strokeColor={adminUi.lightGray} />
+                </Pressable>
+              )}
+              ListFooterComponent={
+                moreCount > 0 ? (
+                  <Text style={styles.moreHint}>
+                    + {formatInt(moreCount)} more in this batch (shown in export)
+                  </Text>
+                ) : (
+                  <View style={{ height: 8 }} />
+                )
+              }
+            />
+          </View>
+        </View>
+
+        <View style={styles.footer}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.primaryBtn,
+              pressed && styles.primaryBtnPressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Confirm coupon batch preview"
+            onPress={onConfirm}>
+            <Text style={styles.primaryBtnText}>Confirm</Text>
+          </Pressable>
+          <Pressable
+            onPress={onDiscard}
+            style={styles.discardWrap}
+            accessibilityRole="button"
+            accessibilityLabel="Discard coupon batch preview">
+            <Text style={styles.discard}>Cancel/Discard</Text>
+          </Pressable>
+        </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: adminUi.screenBg },
-  scroll: { paddingHorizontal: 20, paddingTop: 8 },
+  content: { flex: 1, paddingHorizontal: 20, paddingTop: 8 },
   heroCard: {
     flexDirection: 'row',
-    borderRadius: adminUi.radiusLg,
+    borderRadius: 26,
     backgroundColor: adminUi.creamCard,
     borderWidth: 1,
     borderColor: adminUi.creamCardBorder,
@@ -141,7 +157,7 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   heroAccent: {
-    width: 5,
+    width: 6,
     backgroundColor: adminUi.accentOrange,
   },
   heroBody: { flex: 1, padding: 18 },
@@ -153,10 +169,10 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   heroCount: {
-    fontSize: 36,
-    fontWeight: '800',
+    fontSize: 44,
+    fontWeight: '900',
     color: adminUi.navyAlt,
-    lineHeight: 40,
+    lineHeight: 48,
   },
   heroSub: {
     fontSize: 15,
@@ -167,7 +183,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    gap: 6,
+    gap: 8,
     backgroundColor: adminUi.white,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -175,7 +191,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: adminUi.borderGray,
   },
-  valueBadgeIcon: { fontSize: 14 },
   valueBadgeText: {
     fontSize: 13,
     fontWeight: '700',
@@ -187,32 +202,35 @@ const styles = StyleSheet.create({
     color: adminUi.sectionTitle,
     marginBottom: 12,
   },
+  listWrap: { flex: 1, minHeight: 140 },
   listCard: {
-    borderRadius: adminUi.radiusLg,
+    borderRadius: 26,
     backgroundColor: adminUi.cardBg,
     ...adminUi.shadowCard,
-    marginBottom: 20,
+    flex: 1,
     overflow: 'hidden',
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 16,
     backgroundColor: adminUi.cardBg,
   },
   rowPressed: { backgroundColor: adminUi.offWhite },
   rowSep: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: adminUi.borderGray,
-    marginLeft: 52,
+    marginLeft: 74,
   },
-  qrGlyph: {
-    fontSize: 22,
-    color: adminUi.labelMuted,
-    marginRight: 12,
-    width: 28,
-    textAlign: 'center',
+  qrCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
   },
   rowMid: { flex: 1 },
   code: {
@@ -225,16 +243,13 @@ const styles = StyleSheet.create({
     color: adminUi.labelMuted,
     marginTop: 2,
   },
-  chevron: {
-    fontSize: 22,
-    color: adminUi.lightGray,
-    fontWeight: '300',
-  },
+  footer: { paddingTop: 14, },
   primaryBtn: {
     backgroundColor: adminUi.accentOrange,
-    borderRadius: adminUi.radiusLg,
+    borderRadius: adminUi.radiusPill,
     paddingVertical: 16,
     alignItems: 'center',
+    ...adminUi.shadowCta,
   },
   primaryBtnPressed: { opacity: 0.92 },
   primaryBtnText: {
@@ -243,27 +258,19 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   discardWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
     marginTop: 16,
     paddingBottom: 8,
+    alignItems: 'center',
   },
   discard: {
     fontSize: 15,
     fontWeight: '700',
     color: adminUi.labelMuted,
   },
-  discardArrow: {
-    fontSize: 16,
-    color: adminUi.labelMuted,
-  },
   moreHint: {
     fontSize: 13,
     color: adminUi.labelMuted,
     textAlign: 'center',
-    marginBottom: 8,
-    marginTop: -8,
+    marginVertical: 12,
   },
 });

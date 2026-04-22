@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StatusBar,
@@ -12,6 +13,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { adminUi } from '../../theme/adminUi';
 import { AdminHeader } from './components/AdminHeader';
+import {
+  changeMyPassword,
+  getAdminPreferences,
+  updateAdminPreferences,
+} from '../../api/adminPreferences';
+import { isApiError, userFacingApiMessage } from '../../api/client';
 
 export function AdminSecurityScreen() {
   const insets = useSafeAreaInsets();
@@ -19,6 +26,61 @@ export function AdminSecurityScreen() {
   const [cur, setCur] = useState('');
   const [nw, setNw] = useState('');
   const [cf, setCf] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [loadingPrefs, setLoadingPrefs] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    getAdminPreferences()
+      .then(prefs => {
+        if (!cancelled) {
+          setQuickPin(prefs.quickLoginPinEnabled);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoadingPrefs(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const onUpdatePassword = async () => {
+    setError(null);
+    setSuccess(null);
+    if (!cur.trim() || !nw.trim() || !cf.trim()) {
+      setError('Please fill all password fields.');
+      return;
+    }
+    if (nw.length < 8) {
+      setError('New password should be at least 8 characters.');
+      return;
+    }
+    if (nw !== cf) {
+      setError('New password and confirm password do not match.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await changeMyPassword({
+        currentPassword: cur.trim(),
+        newPassword: nw.trim(),
+      });
+      setSuccess('Password updated successfully.');
+      setCur('');
+      setNw('');
+      setCf('');
+    } catch (e) {
+      if (isApiError(e)) setError(userFacingApiMessage(e.message));
+      else setError('Unable to update password right now.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -64,8 +126,25 @@ export function AdminSecurityScreen() {
             placeholder="••••••••"
             placeholderTextColor={adminUi.mutedGray}
           />
-          <Pressable style={({ pressed }) => [styles.updatePw, pressed && { opacity: 0.92 }]}>
-            <Text style={styles.updatePwTxt}>Update Password</Text>
+          {error ? <Text style={styles.errTxt}>{error}</Text> : null}
+          {success ? <Text style={styles.okTxt}>{success}</Text> : null}
+          <Pressable
+            style={({ pressed }) => [
+              styles.updatePw,
+              saving && styles.btnDisabled,
+              pressed && { opacity: 0.92 },
+            ]}
+            disabled={saving}
+            accessibilityRole="button"
+            accessibilityLabel="Update password"
+            onPress={() => {
+              onUpdatePassword().catch(() => {});
+            }}>
+            {saving ? (
+              <ActivityIndicator color={adminUi.accentOrange} />
+            ) : (
+              <Text style={styles.updatePwTxt}>Update Password</Text>
+            )}
           </Pressable>
         </View>
 
@@ -83,7 +162,21 @@ export function AdminSecurityScreen() {
           </View>
           <Switch
             value={quickPin}
-            onValueChange={setQuickPin}
+            disabled={loadingPrefs || saving}
+            onValueChange={v => {
+              setQuickPin(v);
+              setError(null);
+              setSuccess(null);
+              updateAdminPreferences({ quickLoginPinEnabled: v })
+                .then(() => {
+                  setSuccess(v ? 'Quick Login PIN enabled.' : 'Quick Login PIN disabled.');
+                })
+                .catch((e) => {
+                  setQuickPin(prev => !prev);
+                  if (isApiError(e)) setError(userFacingApiMessage(e.message));
+                  else setError('Unable to update quick PIN setting.');
+                });
+            }}
             trackColor={{ false: '#E5E7EB', true: '#FDBA74' }}
             thumbColor={quickPin ? adminUi.accentOrange : '#f4f3f4'}
           />
@@ -145,6 +238,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: adminUi.accentOrange,
+  },
+  btnDisabled: { opacity: 0.65 },
+  errTxt: {
+    fontSize: 13,
+    color: adminUi.pointsDebit,
+    marginTop: 10,
+    fontWeight: '600',
+  },
+  okTxt: {
+    fontSize: 13,
+    color: adminUi.successGreen,
+    marginTop: 10,
+    fontWeight: '600',
   },
   toggleCard: {
     flexDirection: 'row',

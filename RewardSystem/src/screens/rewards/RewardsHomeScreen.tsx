@@ -19,28 +19,24 @@ import {
   RewardsActive,
   TrendArrowUp,
 } from '../../assets/svgs';
-import { listRewards, type RewardDto } from '../../api/rewards';
+import {
+  getWorkerRedemptionSlabs,
+  listRewards,
+  type RewardDto,
+} from '../../api/rewards';
 import { getMyProfile } from '../../api/users';
 import type { MainTabParamList, RewardsStackParamList } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 import { figma } from '../../theme/figmaTokens';
 import { RewardImageBlock } from './RewardImageBlock';
 import { balanceCaption } from './rewardPointsUtils';
-import {
-  POINT_FILTERS,
-  type PointFilterId,
-} from './figmaRewardsData';
 
 type Nav = CompositeNavigationProp<
   NativeStackNavigationProp<RewardsStackParamList, 'RewardsHome'>,
   BottomTabNavigationProp<MainTabParamList>
 >;
 
-const FILTER_MAX: Record<PointFilterId, number | undefined> = {
-  all: undefined,
-  '1k': 1000,
-  '2k': 2000,
-};
+type PointFilterId = 'all' | `slab-${number}`;
 
 export function RewardsHomeScreen() {
   const insets = useSafeAreaInsets();
@@ -49,24 +45,30 @@ export function RewardsHomeScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [balance, setBalance] = useState(0);
+  const [slabs, setSlabs] = useState<number[]>([]);
   const [allRewards, setAllRewards] = useState<RewardDto[]>([]);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      const max = FILTER_MAX[filter];
-      const [profile, rewards] = await Promise.all([
+      const [profile, rewards, slabValues] = await Promise.all([
         getMyProfile(),
-        listRewards(max),
+        listRewards(),
+        getWorkerRedemptionSlabs(),
       ]);
       setBalance(profile.loyaltyPoints ?? 0);
+      setSlabs(
+        [...new Set((slabValues ?? []).filter((x) => Number.isFinite(x) && x > 0))].sort(
+          (a, b) => a - b,
+        ),
+      );
       setAllRewards(rewards);
     } catch (e) {
       setError((e as Error)?.message ?? 'Could not load rewards');
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -76,6 +78,19 @@ export function RewardsHomeScreen() {
   const caption = useMemo(
     () => balanceCaption(balance, allRewards),
     [balance, allRewards],
+  );
+  const visibleRewards = useMemo(() => {
+    if (filter === 'all') return allRewards;
+    const pts = Number(filter.replace('slab-', ''));
+    if (!Number.isFinite(pts)) return allRewards;
+    return allRewards.filter((r) => r.pointsCost === pts);
+  }, [allRewards, filter]);
+  const filterOptions = useMemo(
+    () => [
+      { id: 'all' as const, label: 'All' },
+      ...slabs.map((s) => ({ id: `slab-${s}` as const, label: `${s.toLocaleString()} Pts` })),
+    ],
+    [slabs],
   );
 
   const goCheckout = (rewardId: string) => {
@@ -161,7 +176,7 @@ export function RewardsHomeScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.filterRow}>
-            {POINT_FILTERS.map(tab => {
+            {filterOptions.map(tab => {
               const selected = filter === tab.id;
               return (
                 <Pressable
@@ -188,10 +203,10 @@ export function RewardsHomeScreen() {
             })}
           </ScrollView>
 
-          {allRewards.length === 0 ? (
+          {visibleRewards.length === 0 ? (
             <Text style={styles.emptyFilter}>No rewards in this range.</Text>
           ) : (
-            allRewards.map(reward => {
+            visibleRewards.map(reward => {
               const unlocked = balance >= reward.pointsCost;
               const progress = Math.min(
                 1,

@@ -39,6 +39,7 @@ export type AdminUsersStackParamList = {
   AdminUsersList: undefined;
   AdminUserDetail: { userId: string };
   AdminUserTransactions: { userId: string };
+  AdminOpsApprovals: undefined;
 };
 
 export type AdminApprovalsStackParamList = {
@@ -86,11 +87,14 @@ export type AdminTabParamList = {
 
 export type RootStackParamList = {
   Splash: undefined;
-  SignUp: undefined;
-  SetPin: { verificationToken: string; phone: string; countryCode: string };
-  Login: undefined;
+  AuthLanding: undefined;
+  CustomerAuth: undefined;
+  AdminLogin: undefined;
+  OpsAdminSignUp: undefined;
+  PendingApproval: undefined;
   /** `edit` opens the form even when the profile is already complete (Account → Edit). */
   ProfileSetup: { edit?: boolean } | undefined;
+  AdminProfileSetup: undefined;
   Main: undefined;
   AdminMain: undefined;
 };

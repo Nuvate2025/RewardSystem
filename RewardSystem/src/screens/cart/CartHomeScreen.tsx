@@ -101,7 +101,7 @@ export function CartHomeScreen() {
             <View style={styles.headerSpacer} />
           )}
         </View>
-        <Text style={styles.headerTitle}>Checkout</Text>
+        <Text style={styles.headerTitle}>Cart</Text>
         <View style={[styles.headerSide, styles.headerSideRight]}>
           <View style={styles.ptsPill}>
             <RewardsActive width={16} height={16} />

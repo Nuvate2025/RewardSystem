@@ -1,4 +1,6 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, Req } from '@nestjs/common';
+import type { Request } from 'express';
+import type { AuthUser } from '../auth/auth-user';
 import { RequirePermissions } from '../auth/require-permissions.decorator';
 import { CreateOperationalAdminDto } from './dto/create-operational-admin.dto';
 import { SuspendUserDto } from './dto/suspend-user.dto';
@@ -116,14 +118,14 @@ export class AdminController {
 
   /** Super Admin — Suspend account (User Profile screen) */
   @Post('users/:id/suspend')
-  @RequirePermissions('users.manage')
+  @RequirePermissions('rbac.manage')
   suspendUser(@Param('id') id: string, @Body() dto: SuspendUserDto) {
     return this.admin.suspendUserById(id, { reason: dto.reason ?? null });
   }
 
   /** Super Admin — Reactivate account (not in Figma yet, but needed to undo suspend) */
   @Post('users/:id/activate')
-  @RequirePermissions('users.manage')
+  @RequirePermissions('rbac.manage')
   activateUser(@Param('id') id: string) {
     return this.admin.activateUserById(id);
   }
@@ -152,14 +154,39 @@ export class AdminController {
 
   /**
    * Superadmins will call this from their dashboard to onboard Operational Admins.
-   * Requires `users.manage` permission (seeded for SUPERADMIN + OPERATIONAL_ADMIN).
+   * Requires `rbac.manage` permission (seeded for SUPERADMIN).
    */
   @Post('operational-admins')
-  @RequirePermissions('users.manage')
+  @RequirePermissions('rbac.manage')
   createOperationalAdmin(@Body() dto: CreateOperationalAdminDto) {
     return this.admin.createOperationalAdmin({
       email: dto.email,
       tempPassword: dto.tempPassword,
     });
   }
+
+  /** Superadmin: list Ops Admin accounts waiting for approval. */
+  @Get('operational-admins/pending')
+  @RequirePermissions('rbac.manage')
+  listPendingOperationalAdmins(
+    @Query('take') take?: string,
+    @Query('offset') offset?: string,
+  ) {
+    const t = take ? Number(take) : 20;
+    const o = offset ? Number(offset) : 0;
+    return this.admin.listPendingOperationalAdmins({
+      take: Number.isFinite(t) ? t : 20,
+      offset: Number.isFinite(o) ? o : 0,
+    });
+  }
+
+  /** Superadmin: approve an Ops Admin self-registered account. */
+  @Post('operational-admins/:id/approve')
+  @RequirePermissions('rbac.manage')
+  approveOperationalAdmin(@Param('id') id: string, @Req() req: Request) {
+    const auth = req.user as AuthUser;
+    return this.admin.approveOperationalAdmin({ userId: id, approvedBy: auth.id });
+  }
+
+  // NOTE: removed "operational-admin-whitelist" flow — ops admins are now gated by approval.
 }

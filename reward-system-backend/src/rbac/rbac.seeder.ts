@@ -51,36 +51,47 @@ export class RbacSeeder implements OnModuleInit {
       permissionKeys: [],
     });
 
-    await this.ensureSuperadminUser();
-    await this.ensureDevPhoneSuperadmin();
+    await this.ensureDevOtpSuperadmin();
     this.logger.log('RBAC seed ensured (roles + permissions).');
   }
 
   /**
-   * Non-production only: ensures a phone + PIN superadmin for the mobile app
-   * (same canonical phone as `AuthService.loginWithPin`: +91 +10 digits).
-   * Override with DEV_ADMIN_PHONE / DEV_ADMIN_PIN.
+   * Non-production only: ensure a SUPERADMIN that can log in via OTP-only staff login.
+   * This matches the new auth system (no password/PIN auth).
+   *
+   * Defaults (requested):
+   * - name: Admin
+   * - email: admin@admin.in
+   * - phone: 9000000000 (+91)
+   *
+   * Optional overrides:
+   * - DEV_SUPERADMIN_PHONE (10 digits)
+   * - DEV_SUPERADMIN_EMAIL
+   * - DEV_SUPERADMIN_NAME
    */
-  private async ensureDevPhoneSuperadmin() {
+  private async ensureDevOtpSuperadmin() {
     if (this.config.get<string>('NODE_ENV') === 'production') return;
 
     const digits = (
-      this.config.get<string>('DEV_ADMIN_PHONE') ?? '9000000000'
+      this.config.get<string>('DEV_SUPERADMIN_PHONE') ?? '9000000000'
     )
       .replace(/\D/g, '')
       .slice(0, 10);
-    const pin = (
-      this.config.get<string>('DEV_ADMIN_PIN') ?? '111111'
-    )
-      .replace(/\D/g, '')
-      .slice(0, 6);
-    if (digits.length !== 10 || pin.length !== 6) return;
+    if (digits.length !== 10) return;
 
     const fullPhone = `+91${digits}`;
-    const email = `${fullPhone.replace(/\+/g, '')}@bestbonds.local`;
+    const email =
+      (this.config.get<string>('DEV_SUPERADMIN_EMAIL') ?? '').trim() ||
+      'admin@admin.in';
+    const name =
+      (this.config.get<string>('DEV_SUPERADMIN_NAME') ?? '').trim() || 'Admin';
 
     const superadminRole = await this.rbac.getRoleByName('SUPERADMIN');
     if (!superadminRole) return;
+
+    // Enforce "single superadmin" invariant even in dev.
+    const existingCount = await this.users.countUsersWithRole('SUPERADMIN');
+    if (existingCount > 0) return;
 
     let user = await this.users.findByPhone(fullPhone);
     if (!user) {
@@ -91,48 +102,23 @@ export class RbacSeeder implements OnModuleInit {
         );
         return;
       }
-      const passwordHash = await bcrypt.hash(
-        `${fullPhone}:${pin}:dev-bootstrap`,
-        12,
-      );
+      const passwordHash = await bcrypt.hash(`${fullPhone}:${Date.now()}:dev`, 12);
       user = await this.users.createLocalUser({
         email,
         passwordHash,
         phone: fullPhone,
       });
       this.logger.warn(
-        `Bootstrapped dev phone SUPERADMIN (mobile PIN login). phone=${fullPhone}`,
+        `Bootstrapped dev phone SUPERADMIN (OTP login). phone=${fullPhone}`,
       );
     }
 
-    const pinHash = await bcrypt.hash(pin, 12);
-    await this.users.setPinHash(user.id, pinHash);
     await this.users.setRoles(user.id, [superadminRole]);
+    await this.users.approveStaffUser({ userId: user.id, approvedBy: user.id });
     await this.users.updateProfile(user.id, {
-      fullName: 'Superadmin',
+      fullName: name,
       deliveryAddress: 'HQ',
+      profession: 'Super Admin',
     });
-  }
-
-  private async ensureSuperadminUser() {
-    const email =
-      this.config.get<string>('SUPERADMIN_EMAIL') ?? 'superadmin@example.com';
-    const password =
-      this.config.get<string>('SUPERADMIN_PASSWORD') ?? 'ChangeMe123!';
-
-    const existing = await this.users.findByEmail(email);
-    if (existing) return;
-
-    const passwordHash = await bcrypt.hash(password, 12);
-    const user = await this.users.createLocalUser({ email, passwordHash });
-
-    const superadminRole = await this.rbac.getRoleByName('SUPERADMIN');
-    if (superadminRole) {
-      await this.users.setRoles(user.id, [superadminRole]);
-    }
-
-    this.logger.warn(
-      `Bootstrapped SUPERADMIN user. email=${email} (set SUPERADMIN_EMAIL/SUPERADMIN_PASSWORD to change)`,
-    );
   }
 }

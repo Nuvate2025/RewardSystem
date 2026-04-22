@@ -3,6 +3,7 @@ import React from 'react';
 import { AdminUsersListScreen } from '../screens/admin/AdminUsersListScreen';
 import { AdminUserDetailScreen } from '../screens/admin/AdminUserDetailScreen';
 import { AdminUserTransactionsScreen } from '../screens/admin/AdminUserTransactionsScreen';
+import { AdminOpsApprovalsScreen } from '../screens/admin/AdminOpsApprovalsScreen';
 import type { AdminUsersStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<AdminUsersStackParamList>();
@@ -17,6 +18,7 @@ export function AdminUsersStack() {
         contentStyle: { backgroundColor: '#FFFFFF' },
       }}>
       <Stack.Screen name="AdminUsersList" component={AdminUsersListScreen} />
+      <Stack.Screen name="AdminOpsApprovals" component={AdminOpsApprovalsScreen} />
       <Stack.Screen name="AdminUserDetail" component={AdminUserDetailScreen} />
       <Stack.Screen name="AdminUserTransactions" component={AdminUserTransactionsScreen} />
     </Stack.Navigator>

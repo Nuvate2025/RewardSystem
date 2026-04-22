@@ -3,34 +3,24 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  AddQr,
+  DoubleTick,
   HomeActive,
   HomeInactive,
   ProfileActive,
   ProfileInactive,
-  ScannerWhite,
+  Users,
 } from '../assets/svgs';
 import type { AdminTabParamList } from './types';
-import { adminUi } from '../theme/adminUi';
+import { tabBarTokens } from '../theme/tabBarTokens';
 
-const activeColor = adminUi.navyAlt;
-const inactiveColor = adminUi.mutedGray;
+const activeColor = tabBarTokens.activeColor;
+const inactiveColor = tabBarTokens.inactiveColor;
 const iconSize = 24;
-
-function UsersCardGlyph({ focused }: { focused: boolean }) {
-  const c = focused ? activeColor : inactiveColor;
-  return (
-    <View style={styles.usersCard}>
-      <View style={[styles.usersRectBack, { borderColor: c }]} />
-      <View style={[styles.usersRectFront, { borderColor: c }]} />
-    </View>
-  );
-}
 
 function CheckApprovalsGlyph({ focused }: { focused: boolean }) {
   const c = focused ? activeColor : inactiveColor;
-  return (
-    <Text style={[styles.checkMark, { color: c }]}>{'\u2713'}</Text>
-  );
+  return <DoubleTick width={iconSize} height={iconSize} color={c} />;
 }
 
 function ScanCenterGlyph({ focused }: { focused: boolean }) {
@@ -40,12 +30,7 @@ function ScanCenterGlyph({ focused }: { focused: boolean }) {
         styles.scanOuter,
         focused && styles.scanOuterActive,
       ]}>
-      <View style={styles.scanInner}>
-        <ScannerWhite width={26} height={26} />
-        <View style={styles.plusBadge}>
-          <Text style={styles.plusTxt}>+</Text>
-        </View>
-      </View>
+      <AddQr width={28} height={28} />
     </View>
   );
 }
@@ -65,7 +50,13 @@ function TabIcon({
         <HomeInactive width={iconSize} height={iconSize} />
       );
     case 'users':
-      return <UsersCardGlyph focused={focused} />;
+      return (
+        <Users
+          width={iconSize}
+          height={iconSize}
+          color={focused ? activeColor : inactiveColor}
+        />
+      );
     case 'scan':
       return <ScanCenterGlyph focused={focused} />;
     case 'approvals':
@@ -117,6 +108,17 @@ export function AdminTabBar({ state, navigation }: BottomTabBarProps) {
     );
   };
 
+  const tabConfig: Record<
+    keyof AdminTabParamList,
+    { label: string; icon: 'home' | 'users' | 'scan' | 'approvals' | 'profile'; isScan?: boolean }
+  > = {
+    AdminHome: { label: 'Home', icon: 'home' },
+    AdminUsers: { label: 'Users', icon: 'users' },
+    AdminScan: { label: 'Scan', icon: 'scan', isScan: true },
+    AdminApprovals: { label: 'Approvals', icon: 'approvals' },
+    AdminProfile: { label: 'Profile', icon: 'profile' },
+  };
+
   return (
     <View
       style={[
@@ -125,11 +127,16 @@ export function AdminTabBar({ state, navigation }: BottomTabBarProps) {
         { paddingBottom: Math.max(insets.bottom, 10) },
       ]}>
       <View style={styles.row}>
-        {tab('AdminHome', 'Home', 'home')}
-        {tab('AdminUsers', 'Users', 'users')}
-        {tab('AdminScan', 'Scan', 'scan', true)}
-        {tab('AdminApprovals', 'Approvals', 'approvals')}
-        {tab('AdminProfile', 'Profile', 'profile')}
+        {state.routes.map(r => {
+          const cfg = tabConfig[r.name as keyof AdminTabParamList];
+          if (!cfg) return null;
+          return tab(
+            r.name as keyof AdminTabParamList,
+            cfg.label,
+            cfg.icon,
+            cfg.isScan,
+          );
+        })}
       </View>
     </View>
   );
@@ -137,103 +144,44 @@ export function AdminTabBar({ state, navigation }: BottomTabBarProps) {
 
 const styles = StyleSheet.create({
   bar: {
-    backgroundColor: adminUi.white,
+    backgroundColor: tabBarTokens.background,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: adminUi.borderGray,
+    borderTopColor: tabBarTokens.borderColor,
     paddingTop: 6,
   },
-  barShadow: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-  },
+  barShadow: tabBarTokens.shadow,
   row: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    paddingHorizontal: 6,
+    paddingHorizontal: tabBarTokens.rowPaddingHorizontal,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: tabBarTokens.itemPaddingVertical,
   },
   tabItemScan: {
-    marginTop: -18,
+    marginTop: tabBarTokens.floatingOffsetY,
   },
   tabLabel: {
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: tabBarTokens.labelSize,
+    fontWeight: tabBarTokens.labelWeight,
     marginTop: 4,
   },
   tabLabelActive: {
-    fontWeight: '800',
-  },
-  usersCard: {
-    width: iconSize,
-    height: iconSize,
-    justifyContent: 'center',
-  },
-  usersRectBack: {
-    position: 'absolute',
-    left: 0,
-    top: 4,
-    width: 16,
-    height: 12,
-    borderRadius: 3,
-    borderWidth: 2,
-    opacity: 0.45,
-  },
-  usersRectFront: {
-    position: 'absolute',
-    right: 0,
-    bottom: 2,
-    width: 16,
-    height: 12,
-    borderRadius: 3,
-    borderWidth: 2,
-    backgroundColor: adminUi.white,
-  },
-  checkMark: {
-    fontSize: 20,
-    fontWeight: '900',
-    lineHeight: 24,
+    fontWeight: tabBarTokens.labelActiveWeight,
   },
   scanOuter: {
-    width: 58,
-    height: 58,
-    borderRadius: 16,
-    backgroundColor: adminUi.accentOrange,
+    width: tabBarTokens.floatingSize,
+    height: tabBarTokens.floatingSize,
+    borderRadius: tabBarTokens.floatingRadius,
+    backgroundColor: tabBarTokens.background,
     alignItems: 'center',
     justifyContent: 'center',
-    ...adminUi.shadowCta,
+    ...tabBarTokens.floatingShadow,
   },
   scanOuterActive: {
     transform: [{ scale: 1.02 }],
-  },
-  scanInner: {
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  plusBadge: {
-    position: 'absolute',
-    right: -4,
-    bottom: -2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: adminUi.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: adminUi.accentOrange,
-  },
-  plusTxt: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: adminUi.accentOrange,
-    marginTop: -1,
   },
 });

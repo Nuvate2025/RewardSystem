@@ -24,6 +24,8 @@ import {
   type AdminRedemptionDetail,
 } from '../../api/adminRedemptions';
 import { isApiError, userFacingApiMessage } from '../../api/client';
+import { getAuthMe } from '../../api/users';
+import { isOperationalOnly } from './adminRole';
 
 type Props = NativeStackScreenProps<
   AdminApprovalsStackParamList,
@@ -42,10 +44,13 @@ export function AdminApprovalDetailScreen(_props: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [deliverOpen, setDeliverOpen] = useState(false);
+  const [operationalOnly, setOperationalOnly] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
     try {
+      const me = await getAuthMe().catch(() => ({ user: null }));
+      setOperationalOnly(isOperationalOnly(me.user ?? null));
       const d = await getAdminRedemptionById(params.requestId);
       setDetail(d);
     } catch (e) {
@@ -65,19 +70,16 @@ export function AdminApprovalDetailScreen(_props: Props) {
   );
 
   const canApprove = useMemo(
-    () => !!detail && detail.status === 'PROCESSING' && !submitting,
-    [detail, submitting],
+    () => !!detail && !operationalOnly && detail.status === 'PROCESSING' && !submitting,
+    [detail, operationalOnly, submitting],
   );
 
   const canReject = useMemo(
-    () => !!detail && detail.status === 'PROCESSING' && !submitting,
-    [detail, submitting],
+    () => !!detail && !operationalOnly && detail.status === 'PROCESSING' && !submitting,
+    [detail, operationalOnly, submitting],
   );
 
-  const canDeliver = useMemo(
-    () => !!detail && detail.status === 'SHIPPED' && !submitting,
-    [detail, submitting],
-  );
+  const canDeliver = useMemo(() => !!detail && detail.status === 'SHIPPED' && !submitting, [detail, submitting]);
 
   const onApprove = useCallback(async () => {
     if (!detail || submitting) return;
@@ -210,6 +212,8 @@ export function AdminApprovalDetailScreen(_props: Props) {
           </Text>
           <Pressable
             style={styles.linkRow}
+            accessibilityRole="button"
+            accessibilityLabel="View requester account"
             onPress={() => {
               const userId = detail.requester.id;
               if (!userId) return;
@@ -228,34 +232,46 @@ export function AdminApprovalDetailScreen(_props: Props) {
           <Text style={styles.flagTxt}>Flag the Account</Text>
         </View>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.approve,
-            (!canApprove || submitting) && styles.btnDisabled,
-            pressed && { opacity: 0.92 },
-          ]}
-          disabled={!canApprove || submitting}
-          onPress={() => {
-            onApprove().catch(() => {});
-          }}>
-          {submitting ? (
-            <ActivityIndicator color={adminUi.white} />
-          ) : (
-            <Text style={styles.approveTxt}>Approve & Dispatch</Text>
-          )}
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [
-            styles.reject,
-            (!canReject || submitting) && styles.btnDisabled,
-            pressed && { opacity: 0.92 },
-          ]}
-          disabled={!canReject || submitting}
-          onPress={() => {
-            onReject().catch(() => {});
-          }}>
-          <Text style={styles.rejectTxt}>Reject Request</Text>
-        </Pressable>
+        {!operationalOnly ? (
+          <>
+            <Pressable
+              style={({ pressed }) => [
+                styles.approve,
+                (!canApprove || submitting) && styles.btnDisabled,
+                pressed && { opacity: 0.92 },
+              ]}
+              disabled={!canApprove || submitting}
+              accessibilityRole="button"
+              accessibilityLabel="Approve and dispatch request"
+              onPress={() => {
+                onApprove().catch(() => {});
+              }}>
+              {submitting ? (
+                <ActivityIndicator color={adminUi.white} />
+              ) : (
+                <Text style={styles.approveTxt}>Approve & Dispatch</Text>
+              )}
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.reject,
+                (!canReject || submitting) && styles.btnDisabled,
+                pressed && { opacity: 0.92 },
+              ]}
+              disabled={!canReject || submitting}
+              accessibilityRole="button"
+              accessibilityLabel="Reject request"
+              onPress={() => {
+                onReject().catch(() => {});
+              }}>
+              <Text style={styles.rejectTxt}>Reject Request</Text>
+            </Pressable>
+          </>
+        ) : (
+          <Text style={styles.roleHint}>
+            Operational admin can update dispatch and delivery status only.
+          </Text>
+        )}
 
         {/* Operational Admin action: visible only after SHIPPED */}
         {detail.status === 'SHIPPED' ? (
@@ -266,6 +282,8 @@ export function AdminApprovalDetailScreen(_props: Props) {
               pressed && { opacity: 0.92 },
             ]}
             disabled={!canDeliver || submitting}
+            accessibilityRole="button"
+            accessibilityLabel="Mark request as delivered"
             onPress={() => { onDeliver().catch(() => {}); }}>
             {submitting ? (
               <ActivityIndicator color={adminUi.white} />
@@ -292,6 +310,8 @@ export function AdminApprovalDetailScreen(_props: Props) {
             </Text>
             <Pressable
               style={styles.modalBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Return to approvals list"
               onPress={() => {
                 setDoneOpen(false);
                 navigation.navigate('AdminApprovalsList');
@@ -314,6 +334,8 @@ export function AdminApprovalDetailScreen(_props: Props) {
             </Text>
             <Pressable
               style={styles.modalBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Return to approvals list"
               onPress={() => {
                 setRejectOpen(false);
                 navigation.navigate('AdminApprovalsList');
@@ -337,6 +359,8 @@ export function AdminApprovalDetailScreen(_props: Props) {
             </Text>
             <Pressable
               style={styles.modalBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Return to approvals list"
               onPress={() => {
                 setDeliverOpen(false);
                 navigation.navigate('AdminApprovalsList');
@@ -508,6 +532,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: adminUi.sectionTitle,
+  },
+  roleHint: {
+    fontSize: 13,
+    color: adminUi.labelMuted,
+    textAlign: 'center',
+    marginTop: 14,
   },
   rejectCircle: { backgroundColor: '#FEE2E2' },
   rejectMark: { color: adminUi.pointsDebit, fontWeight: '900', fontSize: 22 },

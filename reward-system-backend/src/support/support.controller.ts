@@ -1,9 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
-import { Public } from '../auth/public.decorator';
 
 @Controller('support')
 export class SupportController {
-  @Public()
   @Get()
   getSupport() {
     return {

@@ -1,8 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { UsersService } from '../users/users.service';
 import { User } from '../users/entities/user.entity';
 import { RbacService } from '../rbac/rbac.service';
@@ -17,45 +17,6 @@ export class AuthService {
     @InjectRepository(OtpCode)
     private readonly otpRepo: Repository<OtpCode>,
   ) {}
-
-  async register(params: {
-    email: string;
-    password: string;
-    roleName?: 'CUSTOMER' | 'DEALER';
-  }) {
-    const passwordHash = await bcrypt.hash(params.password, 12);
-    const user = await this.users.createLocalUser({
-      email: params.email,
-      passwordHash,
-    });
-
-    const roleName = params.roleName ?? 'CUSTOMER';
-    const role = await this.rbac.getRoleByName(roleName);
-    if (role) {
-      await this.users.setRoles(user.id, [role]);
-    }
-
-    return this.login({ email: params.email, password: params.password });
-  }
-
-  async validateUser(email: string, password: string) {
-    const user = await this.users.findByEmail(email);
-    if (!user || !user.isActive)
-      throw new UnauthorizedException('Invalid credentials');
-
-    const ok = await bcrypt.compare(password, user.passwordHash);
-    if (!ok) throw new UnauthorizedException('Invalid credentials');
-
-    return user;
-  }
-
-  async login(params: { email: string; password: string }) {
-    const user = await this.validateUser(params.email, params.password);
-    const payload = { sub: user.id, email: user.email };
-    return {
-      accessToken: await this.jwt.signAsync(payload),
-    };
-  }
 
   /**
    * Mobile flow: request OTP for a phone number. In production you'd integrate SMS provider.
@@ -80,13 +41,209 @@ export class AuthService {
     };
   }
 
-  async verifyOtp(params: { phone: string; countryCode: string; code: string }) {
+
+  async signupAdminWithOtp(params: {
+    phone: string;
+    countryCode: string;
+    code: string;
+    fullName?: string | null;
+    email?: string | null;
+  }) {
     const fullPhone = `${params.countryCode}${params.phone}`;
+    await this.consumeOtp({ fullPhone, code: params.code });
+
+    // OPS ADMIN self-registration: create / update profile but keep gated until SUPERADMIN approval.
+    let user = await this.users.findByPhone(fullPhone);
+    if (!user) {
+      const email =
+        (params.email?.trim() && params.email.trim().length
+          ? params.email.trim()
+          : `${fullPhone.replace(/\+/g, '')}@bestbonds.local`);
+      user = await this.users.createLocalUser({
+        email,
+        phone: fullPhone,
+        passwordHash: await bcrypt.hash(`${fullPhone}:${Date.now()}`, 8),
+      });
+    }
+
+    const loaded = await this.users.findById(user.id);
+    if (!this.hasAdminRole(loaded)) {
+      const operationalRole = await this.rbac.getRoleByName('OPERATIONAL_ADMIN');
+      if (!operationalRole) {
+        throw new UnauthorizedException('Operational admin role not configured');
+      }
+      await this.users.setRoles(user.id, [operationalRole]);
+    }
+
+    // Capture basic onboarding details (stored in existing profile fields)
+    const fullName = params.fullName?.trim() || null;
+    const deliveryAddress = 'Management Office';
+    if (fullName) {
+      await this.users.updateProfile(user.id, { fullName, deliveryAddress });
+    }
+
+    return { pendingApproval: true };
+  }
+
+  async loginAdminWithOtp(params: {
+    phone: string;
+    countryCode: string;
+    code: string;
+  }) {
+    const fullPhone = `${params.countryCode}${params.phone}`;
+    await this.consumeOtp({ fullPhone, code: params.code });
+
+    const user = await this.users.findByPhone(fullPhone);
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Management account not found');
+    }
+    const loaded = await this.users.findById(user.id);
+    if (!loaded) {
+      throw new UnauthorizedException('Management account not found');
+    }
+    if (!this.hasAdminRole(loaded)) {
+      throw new UnauthorizedException('Management account not found');
+    }
+    const isSuper = (loaded.roles ?? []).some(
+      (r) => String(r.name).toUpperCase() === 'SUPERADMIN',
+    );
+    const isOps = (loaded.roles ?? []).some(
+      (r) => String(r.name).toUpperCase() === 'OPERATIONAL_ADMIN',
+    );
+    if (isOps && !isSuper) {
+      if (!loaded.staffApprovedAt) {
+        throw new ForbiddenException('Waiting for Super Admin approval.');
+      }
+    }
+    const snap = this.authSnapshot(loaded);
+    return {
+      accessToken: await this.jwt.signAsync({ sub: user.id, email: user.email }),
+      roles: snap.roles,
+      permissions: snap.permissions,
+    };
+  }
+
+  async signupCustomerWithOtp(params: {
+    phone: string;
+    countryCode: string;
+    code: string;
+    fullName?: string | null;
+    email?: string | null;
+  }) {
+    const fullPhone = `${params.countryCode}${params.phone}`;
+    await this.consumeOtp({ fullPhone, code: params.code });
+
+    let user = await this.users.findByPhone(fullPhone);
+    if (!user) {
+      const email =
+        (params.email?.trim() && params.email.trim().length
+          ? params.email.trim()
+          : `${fullPhone.replace(/\+/g, '')}@bestbonds.local`);
+      user = await this.users.createLocalUser({
+        email,
+        phone: fullPhone,
+        passwordHash: await bcrypt.hash(`${fullPhone}:${Date.now()}`, 8),
+      });
+      await this.ensureDefaultMobileRole(user.id);
+    } else {
+      await this.ensureDefaultMobileRole(user.id);
+    }
+
+    const fullName = params.fullName?.trim() || null;
+    if (fullName) {
+      await this.users.updateProfile(user.id, {
+        fullName,
+        deliveryAddress: 'Customer Address',
+      });
+    }
+
+    const loaded = await this.users.findById(user.id);
+    const snap = this.authSnapshot(loaded);
+    return {
+      accessToken: await this.jwt.signAsync({ sub: user.id, email: user.email }),
+      roles: snap.roles,
+      permissions: snap.permissions,
+    };
+  }
+
+  async loginCustomerWithOtp(params: {
+    phone: string;
+    countryCode: string;
+    code: string;
+  }) {
+    const fullPhone = `${params.countryCode}${params.phone}`;
+    await this.consumeOtp({ fullPhone, code: params.code });
+
+    const user = await this.users.findByPhone(fullPhone);
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Account not found');
+    }
+    const loaded = await this.users.findById(user.id);
+    const isCustomer = (loaded?.roles ?? []).some(
+      (r) => String(r.name).toUpperCase() === 'CUSTOMER',
+    );
+    if (!isCustomer) throw new UnauthorizedException('Account not found');
+
+    const snap = this.authSnapshot(loaded);
+    return {
+      accessToken: await this.jwt.signAsync({ sub: user.id, email: user.email }),
+      roles: snap.roles,
+      permissions: snap.permissions,
+    };
+  }
+
+  async signupSuperadminWithOtp(params: {
+    phone: string;
+    countryCode: string;
+    code: string;
+    fullName: string;
+    email: string;
+  }) {
+    const fullPhone = `${params.countryCode}${params.phone}`;
+    const superCount = await this.users.countUsersWithRole('SUPERADMIN');
+    if (superCount > 0) {
+      throw new UnauthorizedException('Super Admin already exists');
+    }
+
+    await this.consumeOtp({ fullPhone, code: params.code });
+
+    const email = params.email.trim();
+    const passwordHash = await bcrypt.hash(`${fullPhone}:${Date.now()}`, 8);
+    let user = await this.users.findByPhone(fullPhone);
+    if (!user) {
+      user = await this.users.createLocalUser({
+        email,
+        phone: fullPhone,
+        passwordHash,
+      });
+    }
+
+    const role = await this.rbac.getRoleByName('SUPERADMIN');
+    if (!role) throw new UnauthorizedException('SUPERADMIN role not configured');
+    await this.users.setRoles(user.id, [role]);
+
+    // Auto-approve superadmin
+    await this.users.approveStaffUser({ userId: user.id, approvedBy: user.id });
+    await this.users.updateProfile(user.id, {
+      fullName: params.fullName.trim(),
+      deliveryAddress: 'HQ',
+      profession: 'Super Admin',
+    });
+
+    const snap = this.authSnapshot(await this.users.findById(user.id));
+    return {
+      accessToken: await this.jwt.signAsync({ sub: user.id, email }),
+      roles: snap.roles,
+      permissions: snap.permissions,
+    };
+  }
+
+  private async consumeOtp(params: { fullPhone: string; code: string }) {
     const latest = await this.otpRepo.findOne({
-      where: { phone: fullPhone },
+      where: { phone: params.fullPhone, consumedAt: IsNull() },
       order: { createdAt: 'DESC' },
     });
-    if (!latest || latest.consumedAt) {
+    if (!latest) {
       throw new UnauthorizedException('OTP not found');
     }
     if (latest.expiresAt.getTime() < Date.now()) {
@@ -97,25 +254,26 @@ export class AuthService {
 
     latest.consumedAt = new Date();
     await this.otpRepo.save(latest);
+  }
 
-    // find/create user bound to this phone
-    let user = await this.users.findByPhone(fullPhone);
-    if (!user) {
-      // deterministic email to satisfy existing schema
-      const email = `${fullPhone.replace(/\+/g, '')}@bestbonds.local`;
-      user = await this.users.createLocalUser({
-        email,
-        phone: fullPhone,
-        passwordHash: await bcrypt.hash(`${fullPhone}:${Date.now()}`, 8),
-      });
+  private async ensureDefaultMobileRole(userId: string) {
+    const loaded = await this.users.findById(userId);
+    if (!loaded) return;
+    if ((loaded.roles ?? []).length > 0) return;
+    const customerRole = await this.rbac.getRoleByName('CUSTOMER');
+    if (customerRole) {
+      await this.users.setRoles(userId, [customerRole]);
     }
+  }
 
-    const verificationToken = await this.jwt.signAsync(
-      { sub: user.id, email: user.email, purpose: 'PIN_SETUP' },
-      { expiresIn: '10m' },
+  private hasAdminRole(user: User | null | undefined): boolean {
+    if (!user) return false;
+    const roleNames = new Set(
+      (user.roles ?? []).map((r) => String(r.name).toUpperCase()),
     );
-
-    return { verificationToken };
+    return (
+      roleNames.has('SUPERADMIN') || roleNames.has('OPERATIONAL_ADMIN')
+    );
   }
 
   private authSnapshot(user: User | null) {
@@ -131,55 +289,5 @@ export class AuthService {
       ),
     );
     return { roles, permissions };
-  }
-
-  async setPin(params: { verificationToken: string; pin: string }) {
-    let payload: any;
-    try {
-      payload = await this.jwt.verifyAsync(params.verificationToken);
-    } catch {
-      throw new UnauthorizedException('Invalid verification token');
-    }
-    if (payload?.purpose !== 'PIN_SETUP' || !payload?.sub) {
-      throw new UnauthorizedException('Invalid verification token');
-    }
-
-    const user = await this.users.findById(payload.sub);
-    if (!user || !user.isActive) throw new UnauthorizedException();
-
-    const pinPlain = String(params.pin).replace(/\D/g, '').slice(0, 6);
-    const pinHash = await bcrypt.hash(pinPlain, 12);
-    await this.users.setPinHash(user.id, pinHash);
-
-    const loaded = await this.users.findById(user.id);
-    const snap = this.authSnapshot(loaded);
-
-    return {
-      accessToken: await this.jwt.signAsync({ sub: user.id, email: user.email }),
-      roles: snap.roles,
-      permissions: snap.permissions,
-    };
-  }
-
-  async loginWithPin(params: { phone: string; pin: string }) {
-    // Same canonical key as verifyOtp (`countryCode` + national digits), e.g. +919876543210.
-    // Keep in sync with mobile signup default country (+91).
-    const fullPhone = `+91${String(params.phone).replace(/\D/g, '').slice(0, 10)}`;
-    const pinPlain = String(params.pin).replace(/\D/g, '').slice(0, 6);
-    const user = await this.users.findByPhone(fullPhone);
-    if (!user || !user.isActive) throw new UnauthorizedException('Invalid credentials');
-    if (!user.pinHash) throw new UnauthorizedException('PIN not set');
-
-    const ok = await bcrypt.compare(pinPlain, user.pinHash);
-    if (!ok) throw new UnauthorizedException('Invalid credentials');
-
-    const loaded = await this.users.findById(user.id);
-    const snap = this.authSnapshot(loaded);
-
-    return {
-      accessToken: await this.jwt.signAsync({ sub: user.id, email: user.email }),
-      roles: snap.roles,
-      permissions: snap.permissions,
-    };
   }
 }

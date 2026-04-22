@@ -101,9 +101,20 @@ export class CouponsService {
       const user = await userRepo.findOne({ where: { id: params.userId } });
       if (!user) throw new NotFoundException('User not found');
 
+      const redeemedAt = new Date();
+      const reserve = await couponRepo
+        .createQueryBuilder()
+        .update(Coupon)
+        .set({ status: 'REDEEMED', redeemedAt })
+        .where('id = :id', { id: coupon.id })
+        .andWhere('status = :active', { active: 'ACTIVE' })
+        .execute();
+      if (!reserve.affected) {
+        throw new ForbiddenException('Coupon already used or inactive');
+      }
       coupon.status = 'REDEEMED';
       coupon.redeemedBy = user;
-      coupon.redeemedAt = new Date();
+      coupon.redeemedAt = redeemedAt;
       await couponRepo.save(coupon);
 
       // Credit points + create transaction record

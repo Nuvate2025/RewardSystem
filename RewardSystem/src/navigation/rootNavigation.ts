@@ -6,7 +6,7 @@ export const rootNavigationRef = createNavigationContainerRef<RootStackParamList
 export function resetToLogin() {
   if (rootNavigationRef.isReady()) {
     rootNavigationRef.dispatch(
-      CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }),
+      CommonActions.reset({ index: 0, routes: [{ name: 'CustomerAuth' }] }),
     );
   }
 }

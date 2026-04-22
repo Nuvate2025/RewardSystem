@@ -46,6 +46,8 @@ function AdminUserRow({
         suspended && styles.rowSuspended,
         pressed && styles.rowPressed,
       ]}
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${item.name} profile`}
       onPress={onPress}>
       <View style={[styles.avatar, { backgroundColor: suspended ? '#F3F4F6' : item.avatarColor }]}>
         <Text style={[styles.avatarTxt, suspended && { color: adminUi.labelMuted }]}>
@@ -177,6 +179,8 @@ export function AdminUsersListScreen() {
                 setFilter(f);
                 setTimeout(() => load('reset').catch(() => {}), 0);
               }}
+              accessibilityRole="button"
+              accessibilityLabel={`Filter by ${f}`}
               style={[styles.pill, on && styles.pillOn]}>
               <Text style={[styles.pillTxt, on && styles.pillTxtOn]}>{f}</Text>
             </Pressable>
@@ -213,6 +217,8 @@ export function AdminUsersListScreen() {
             <Pressable
               style={[styles.loadMore, (!hasMore || loadingMore) && styles.loadMoreDisabled]}
               disabled={!hasMore || loadingMore}
+              accessibilityRole="button"
+              accessibilityLabel="Load more users"
               onPress={() => load('more').catch(() => {})}>
               {loadingMore ? (
                 <ActivityIndicator color={adminUi.sectionTitle} />

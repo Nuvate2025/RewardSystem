@@ -1,5 +1,5 @@
 import { isApiError } from '../api/client';
-import { getAccessToken, getSavedPhone, setAccessToken } from '../api/storage';
+import { getAccessToken, setAccessToken } from '../api/storage';
 import { getAuthMe, getMyProfile } from '../api/users';
 import type { RootStackParamList } from '../navigation/types';
 import { isProfileComplete } from './profileCompletion';
@@ -7,12 +7,12 @@ import { pickHomeRoute } from './roleRouting';
 
 export type AuthInitialRoute = keyof Pick<
   RootStackParamList,
-  'Main' | 'AdminMain' | 'ProfileSetup' | 'Login' | 'SignUp'
+  | 'Main'
+  | 'AdminMain'
+  | 'ProfileSetup'
+  | 'AdminProfileSetup'
+  | 'CustomerAuth'
 >;
-
-function hasTenDigitPhone(phone: string): boolean {
-  return phone.replace(/\D/g, '').length === 10;
-}
 
 async function meSnapshot() {
   try {
@@ -26,25 +26,25 @@ async function meSnapshot() {
  * Decides first screen after splash: session + profile completeness + network.
  */
 export async function resolveInitialRoute(): Promise<AuthInitialRoute> {
-  const [token, { phone }] = await Promise.all([
-    getAccessToken(),
-    getSavedPhone(),
-  ]);
+  const token = await getAccessToken();
 
   if (!token) {
-    return hasTenDigitPhone(phone) ? 'Login' : 'SignUp';
+    return 'CustomerAuth';
   }
 
   try {
     const profile = await getMyProfile();
     const me = await meSnapshot();
+    const home = pickHomeRoute(profile, me ?? undefined);
     return isProfileComplete(profile)
-      ? pickHomeRoute(profile, me ?? undefined)
-      : 'ProfileSetup';
+      ? home
+      : home === 'AdminMain'
+        ? 'AdminProfileSetup'
+        : 'ProfileSetup';
   } catch (e) {
     if (isApiError(e) && e.status === 401) {
       await setAccessToken(null);
-      return hasTenDigitPhone(phone) ? 'Login' : 'SignUp';
+      return 'CustomerAuth';
     }
     try {
       const me = await meSnapshot();

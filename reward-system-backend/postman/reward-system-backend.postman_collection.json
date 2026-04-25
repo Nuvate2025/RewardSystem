@@ -327,6 +327,231 @@
                 }
               ]
             }
+            ,
+            {
+              "name": "Redemptions — List",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{superadminAccessToken}}", "type": "string" }
+                  ]
+                },
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/redemptions?status=PENDING&take=20&offset=0&sort=NEWEST",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "redemptions"],
+                  "query": [
+                    { "key": "status", "value": "PENDING" },
+                    { "key": "take", "value": "20" },
+                    { "key": "offset", "value": "0" },
+                    { "key": "sort", "value": "NEWEST" }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "if (json && Array.isArray(json.items) && json.items[0] && json.items[0].id) {",
+                      "  pm.collectionVariables.set('adminRedemptionId', String(json.items[0].id));",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Redemptions — Detail (set adminRedemptionId)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{superadminAccessToken}}", "type": "string" }
+                  ]
+                },
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/redemptions/{{adminRedemptionId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "redemptions", "{{adminRedemptionId}}"]
+                }
+              }
+            },
+            {
+              "name": "Redemptions — Approve",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{superadminAccessToken}}", "type": "string" }
+                  ]
+                },
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/redemptions/{{adminRedemptionId}}/approve",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "redemptions", "{{adminRedemptionId}}", "approve"]
+                }
+              }
+            },
+            {
+              "name": "Redemptions — Reject",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{superadminAccessToken}}", "type": "string" }
+                  ]
+                },
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/redemptions/{{adminRedemptionId}}/reject",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "redemptions", "{{adminRedemptionId}}", "reject"]
+                }
+              }
+            },
+            {
+              "name": "Redemptions — Mark Delivered (Ops Admin permission: redemptions.deliver)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{opsAdminAccessToken}}", "type": "string" }
+                  ]
+                },
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/redemptions/{{adminRedemptionId}}/deliver",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "redemptions", "{{adminRedemptionId}}", "deliver"]
+                }
+              }
+            },
+            {
+              "name": "Users — List",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{superadminAccessToken}}", "type": "string" }
+                  ]
+                },
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users?q=&profession=&take=20&offset=0",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "users"],
+                  "query": [
+                    { "key": "q", "value": "" },
+                    { "key": "profession", "value": "" },
+                    { "key": "take", "value": "20" },
+                    { "key": "offset", "value": "0" }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "if (json && Array.isArray(json.items) && json.items[0] && json.items[0].id) {",
+                      "  pm.collectionVariables.set('adminUserId', String(json.items[0].id));",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Users — Detail (set adminUserId)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{superadminAccessToken}}", "type": "string" }
+                  ]
+                },
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users/{{adminUserId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "users", "{{adminUserId}}"]
+                }
+              }
+            },
+            {
+              "name": "Users — Suspend (requires rbac.manage)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{superadminAccessToken}}", "type": "string" }
+                  ]
+                },
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users/{{adminUserId}}/suspend",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "users", "{{adminUserId}}", "suspend"]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Test suspend\"\n}\n"
+                }
+              }
+            },
+            {
+              "name": "Users — Activate (requires rbac.manage)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{superadminAccessToken}}", "type": "string" }
+                  ]
+                },
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users/{{adminUserId}}/activate",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "users", "{{adminUserId}}", "activate"]
+                }
+              }
+            },
+            {
+              "name": "Users — Transactions (This Month)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{superadminAccessToken}}", "type": "string" }
+                  ]
+                },
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/admin/users/{{adminUserId}}/transactions?period=THIS_MONTH&limit=20&offset=0",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "users", "{{adminUserId}}", "transactions"],
+                  "query": [
+                    { "key": "period", "value": "THIS_MONTH" },
+                    { "key": "limit", "value": "20" },
+                    { "key": "offset", "value": "0" }
+                  ]
+                }
+              }
+            }
           ]
         },
         {
@@ -491,11 +716,14 @@
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('stores couponCode from first generated coupon', function () {",
+                      "pm.test('stores batchId + preview couponCode', function () {",
                       "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
                       "  const json = pm.response.json();",
-                      "  if (Array.isArray(json) && json[0] && json[0].code) {",
-                      "    pm.collectionVariables.set('couponCode', json[0].code);",
+                      "  if (json && json.batchId) {",
+                      "    pm.collectionVariables.set('couponBatchId', String(json.batchId));",
+                      "  }",
+                      "  if (json && Array.isArray(json.previewCodes) && json.previewCodes[0]) {",
+                      "    pm.collectionVariables.set('couponCode', String(json.previewCodes[0]));",
                       "  }",
                       "});"
                     ]
@@ -518,6 +746,79 @@
                   "host": ["{{baseUrl}}"],
                   "path": ["coupons"],
                   "query": [{ "key": "take", "value": "50" }]
+                }
+              }
+            },
+            {
+              "name": "List Coupon Batches",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{opsAdminAccessToken}}", "type": "string" }
+                  ]
+                },
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/coupons/batches?take=20&offset=0",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["coupons", "batches"],
+                  "query": [
+                    { "key": "take", "value": "20" },
+                    { "key": "offset", "value": "0" }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "if (json && Array.isArray(json.items) && json.items[0] && json.items[0].batchId) {",
+                      "  pm.collectionVariables.set('couponBatchId', String(json.items[0].batchId));",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List Batch Coupons (set couponBatchId)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{opsAdminAccessToken}}", "type": "string" }
+                  ]
+                },
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/coupons/batches/{{couponBatchId}}?take=50&offset=0",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["coupons", "batches", "{{couponBatchId}}"],
+                  "query": [
+                    { "key": "take", "value": "50" },
+                    { "key": "offset", "value": "0" }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Export Batch PDF (inline) (set couponBatchId)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    { "key": "token", "value": "{{opsAdminAccessToken}}", "type": "string" }
+                  ]
+                },
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/coupons/batches/{{couponBatchId}}/export.pdf",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["coupons", "batches", "{{couponBatchId}}", "export.pdf"]
                 }
               }
             }
@@ -687,6 +988,28 @@
                       ]
                     }
                   }
+                },
+                {
+                  "name": "Transaction History (All)",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        { "key": "token", "value": "{{customerAccessToken}}", "type": "string" }
+                      ]
+                    },
+                    "method": "GET",
+                    "url": {
+                      "raw": "{{baseUrl}}/transactions/me?period=ALL&limit=20&offset=0",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["transactions", "me"],
+                      "query": [
+                        { "key": "period", "value": "ALL" },
+                        { "key": "limit", "value": "20" },
+                        { "key": "offset", "value": "0" }
+                      ]
+                    }
+                  }
                 }
               ]
             },
@@ -707,6 +1030,23 @@
                       "raw": "{{baseUrl}}/rewards",
                       "host": ["{{baseUrl}}"],
                       "path": ["rewards"]
+                    }
+                  }
+                },
+                {
+                  "name": "Worker Slabs",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        { "key": "token", "value": "{{customerAccessToken}}", "type": "string" }
+                      ]
+                    },
+                    "method": "GET",
+                    "url": {
+                      "raw": "{{baseUrl}}/rewards/slabs",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["rewards", "slabs"]
                     }
                   }
                 },
@@ -765,6 +1105,23 @@
                       "path": ["rewards", "me", "redemptions"]
                     }
                   }
+                },
+                {
+                  "name": "Cancel Redemption (set redemptionId)",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        { "key": "token", "value": "{{customerAccessToken}}", "type": "string" }
+                      ]
+                    },
+                    "method": "DELETE",
+                    "url": {
+                      "raw": "{{baseUrl}}/rewards/me/redemptions/{{redemptionId}}/cancel",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["rewards", "me", "redemptions", "{{redemptionId}}", "cancel"]
+                    }
+                  }
                 }
               ]
             },
@@ -819,6 +1176,10 @@
     { "key": "pendingOpsAdminUserId", "value": "" },
 
     { "key": "couponCode", "value": "" },
-    { "key": "rewardId", "value": "" }
+    { "key": "couponBatchId", "value": "" },
+    { "key": "rewardId", "value": "" },
+    { "key": "adminUserId", "value": "" },
+    { "key": "adminRedemptionId", "value": "" },
+    { "key": "redemptionId", "value": "" }
   ]
 }

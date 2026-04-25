@@ -3,6 +3,7 @@ import React from 'react';
 import { AdminCouponGenerateScreen } from '../screens/admin/coupon/AdminCouponGenerateScreen';
 import { AdminCouponPreviewScreen } from '../screens/admin/coupon/AdminCouponPreviewScreen';
 import { AdminCouponExportScreen } from '../screens/admin/coupon/AdminCouponExportScreen';
+import { AdminCouponPdfViewerScreen } from '../screens/admin/coupon/AdminCouponPdfViewerScreen';
 import type { AdminCouponStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<AdminCouponStackParamList>();
@@ -27,6 +28,10 @@ export function AdminCouponStack() {
       <Stack.Screen
         name="AdminCouponExport"
         component={AdminCouponExportScreen}
+      />
+      <Stack.Screen
+        name="AdminCouponPdfViewer"
+        component={AdminCouponPdfViewerScreen}
       />
     </Stack.Navigator>
   );

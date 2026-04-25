@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import type { EntityManager } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import {
   PointsTransaction,
@@ -20,6 +21,44 @@ export class PointsService {
     private readonly txRepo: Repository<PointsTransaction>,
   ) {}
 
+  async creditWithManager(
+    manager: EntityManager,
+    params: {
+      userId: string;
+      points: number;
+      title: string;
+      site?: string | null;
+      type: PointsTransactionType;
+    },
+  ) {
+    if (!Number.isFinite(params.points) || params.points === 0) {
+      throw new BadRequestException('Invalid points');
+    }
+
+    const userRepo = manager.getRepository(User);
+    const txRepo = manager.getRepository(PointsTransaction);
+
+    const user = await userRepo.findOne({ where: { id: params.userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    user.loyaltyPoints = (user.loyaltyPoints ?? 0) + params.points;
+    if (user.loyaltyPoints < 0) {
+      throw new BadRequestException('Insufficient points');
+    }
+    await userRepo.save(user);
+
+    const tx = txRepo.create({
+      user,
+      type: params.type,
+      pointsDelta: params.points,
+      title: params.title,
+      site: params.site ?? null,
+    });
+    await txRepo.save(tx);
+
+    return { user, tx };
+  }
+
   async credit(params: {
     userId: string;
     points: number;
@@ -31,28 +70,7 @@ export class PointsService {
       throw new BadRequestException('Invalid points');
     }
     return this.dataSource.transaction(async (manager) => {
-      const userRepo = manager.getRepository(User);
-      const txRepo = manager.getRepository(PointsTransaction);
-
-      const user = await userRepo.findOne({ where: { id: params.userId } });
-      if (!user) throw new NotFoundException('User not found');
-
-      user.loyaltyPoints = (user.loyaltyPoints ?? 0) + params.points;
-      if (user.loyaltyPoints < 0) {
-        throw new BadRequestException('Insufficient points');
-      }
-      await userRepo.save(user);
-
-      const tx = txRepo.create({
-        user,
-        type: params.type,
-        pointsDelta: params.points,
-        title: params.title,
-        site: params.site ?? null,
-      });
-      await txRepo.save(tx);
-
-      return { user, tx };
+      return this.creditWithManager(manager, params);
     });
   }
 

@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import {
   Alert,
   Pressable,
+  Share,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -16,6 +17,8 @@ import { AdminHeader } from '../components/AdminHeader';
 import type { AdminCouponStackParamList } from '../../../navigation/types';
 import { adminUi } from '../../../theme/adminUi';
 import { CheckCircle, Download, Pdf } from '../../../assets/svgs';
+import { API_BASE_URL } from '../../../api/config';
+import { getAccessToken } from '../../../api/storage';
 
 type Nav = NativeStackNavigationProp<
   AdminCouponStackParamList,
@@ -34,13 +37,80 @@ export function AdminCouponExportScreen() {
   const navigation = useNavigation<Nav>();
   const { params } = useRoute<R>();
   const { batchId, createdAtLabel, totalCoupons, totalPts, slabPts } = params;
+  const [downloading, setDownloading] = useState(false);
+
+  const onViewPdf = () => {
+    if (!batchId || !batchId.trim()) {
+      Alert.alert(
+        'View failed',
+        'Batch id is missing. Please regenerate the batch and try again.',
+        [{ text: 'OK' }],
+      );
+      return;
+    }
+    navigation.navigate('AdminCouponPdfViewer', { batchId });
+  };
 
   const onDownload = () => {
-    Alert.alert(
-      'Export',
-      `Demo: would download PDF for batch ${batchId} (${formatInt(totalCoupons)} coupons).`,
-      [{ text: 'OK' }],
-    );
+    if (downloading) return;
+    if (!batchId || !batchId.trim()) {
+      Alert.alert(
+        'Export failed',
+        'Batch id is missing. Please regenerate the batch and try again.',
+        [{ text: 'OK' }],
+      );
+      return;
+    }
+    setDownloading(true);
+    (async () => {
+      const token = await getAccessToken();
+      if (!token) throw new Error('Not authenticated');
+
+      // Lazy-load to avoid iOS crash when native module isn't linked yet.
+      let RNFS: typeof import('react-native-fs');
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        RNFS = require('react-native-fs');
+      } catch {
+        throw new Error(
+          'File module not available. Run iOS pods install and rebuild the app.',
+        );
+      }
+      const docDir = (RNFS as unknown as { DocumentDirectoryPath?: string })
+        .DocumentDirectoryPath;
+      if (!docDir) {
+        throw new Error(
+          'File module is not linked (DocumentDirectoryPath missing). Run `cd ios && pod install`, then rebuild the iOS app.',
+        );
+      }
+
+      const fromUrl = `${API_BASE_URL}/coupons/batches/${encodeURIComponent(
+        batchId,
+      )}/export.pdf`;
+      const toFile = `${docDir}/coupon-batch-${batchId}.pdf`;
+
+      const r = RNFS.downloadFile({
+        fromUrl,
+        toFile,
+        headers: { Authorization: `Bearer ${token}` },
+        background: true,
+      });
+      const result = await r.promise;
+      if (result.statusCode && result.statusCode >= 400) {
+        throw new Error(`Download failed (${result.statusCode})`);
+      }
+
+      await Share.share({
+        title: `Coupon batch ${batchId}`,
+        url: `file://${toFile}`,
+      });
+    })()
+      .catch((e) => {
+        const msg = String((e as Error)?.message ?? e);
+        console.warn('[Export] PDF download failed', msg);
+        Alert.alert('Export failed', msg, [{ text: 'OK' }]);
+      })
+      .finally(() => setDownloading(false));
   };
 
   const onDiscard = () => {
@@ -104,14 +174,29 @@ export function AdminCouponExportScreen() {
 
         <Pressable
           style={({ pressed }) => [
+            styles.secondaryBtn,
+            pressed && styles.secondaryBtnPressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="View batch PDF in app"
+          onPress={onViewPdf}>
+          <Text style={styles.secondaryBtnText}>View PDF</Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [
             styles.primaryBtn,
+            downloading && styles.primaryBtnDisabled,
             pressed && styles.primaryBtnPressed,
           ]}
           accessibilityRole="button"
           accessibilityLabel="Download exported coupon batch"
+          disabled={downloading}
           onPress={onDownload}>
           <Download width={20} height={20} />
-          <Text style={styles.primaryBtnText}>Download</Text>
+          <Text style={styles.primaryBtnText}>
+            {downloading ? 'Downloading…' : 'Download'}
+          </Text>
         </Pressable>
 
         <Pressable
@@ -224,6 +309,23 @@ const styles = StyleSheet.create({
     marginTop: 26,
     ...adminUi.shadowCta,
   },
+  secondaryBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: adminUi.radiusPill,
+    paddingVertical: 14,
+    marginTop: 14,
+    backgroundColor: adminUi.white,
+    borderWidth: 1,
+    borderColor: adminUi.borderSoft,
+  },
+  secondaryBtnPressed: { opacity: 0.9 },
+  secondaryBtnText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: adminUi.navyAlt,
+  },
+  primaryBtnDisabled: { opacity: 0.7 },
   primaryBtnPressed: { opacity: 0.92 },
   primaryBtnText: {
     color: adminUi.white,

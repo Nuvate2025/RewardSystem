@@ -20,6 +20,18 @@ export class Coupon {
   @Column({ type: 'text' })
   code!: string;
 
+  /**
+   * Groups many unique coupons into one printable/exportable batch.
+   * All coupons generated in a single request share the same batchId/batchNumber.
+   */
+  @Index()
+  @Column({ name: 'batch_id', type: 'text', nullable: true })
+  batchId!: string | null;
+
+  @Index()
+  @Column({ name: 'batch_number', type: 'integer', nullable: true })
+  batchNumber!: number | null;
+
   // Points to be credited when scanned/entered.
   @Column({ type: 'integer' })
   points!: number;

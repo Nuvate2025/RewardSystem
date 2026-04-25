@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req, Res } from '@nestjs/common';
 import type { Request } from 'express';
+import type { Response } from 'express';
 import type { AuthUser } from '../auth/auth-user';
 import { RequirePermissions } from '../auth/require-permissions.decorator';
 import { CouponsService } from './coupons.service';
@@ -40,11 +41,69 @@ export class CouponsController {
   }
 
   /**
+   * Ops Admin/Superadmin: list coupon batches (for management/export history).
+   */
+  @Get('batches')
+  @RequirePermissions('coupons.manage')
+  listBatches(@Query('take') take?: string, @Query('offset') offset?: string) {
+    const t = take ? Number(take) : 20;
+    const o = offset ? Number(offset) : 0;
+    return this.coupons.listBatches({
+      take: Number.isFinite(t) ? t : 20,
+      offset: Number.isFinite(o) ? o : 0,
+    });
+  }
+
+  /**
+   * Ops Admin/Superadmin: list coupons belonging to a batch.
+   */
+  @Get('batches/:batchId')
+  @RequirePermissions('coupons.manage')
+  listBatchCoupons(
+    @Param('batchId') batchId: string,
+    @Query('take') take?: string,
+    @Query('offset') offset?: string,
+    @Query('status') status?: string,
+  ) {
+    const t = take ? Number(take) : 50;
+    const o = offset ? Number(offset) : 0;
+    return this.coupons.listBatchCoupons({
+      batchId,
+      status,
+      take: Number.isFinite(t) ? t : 50,
+      offset: Number.isFinite(o) ? o : 0,
+    });
+  }
+
+  /**
    * Customer/Dealer: redeem a coupon by scanned/manual code entry.
    */
   @Post('redeem')
   redeem(@Req() req: Request, @Body() dto: RedeemCouponDto) {
     const user = req.user as AuthUser;
-    return this.coupons.redeem({ userId: user.id, code: dto.code });
+    return this.coupons.redeem({
+      userId: user.id,
+      userRoles: user.roles ?? [],
+      code: dto.code,
+    });
+  }
+
+  /**
+   * Ops Admin/Superadmin: export a coupon batch as print-ready PDF.
+   * 3 coupons per page, stacked vertically.
+   */
+  @Get('batches/:batchId/export.pdf')
+  @RequirePermissions('coupons.manage')
+  async exportBatchPdf(
+    @Param('batchId') batchId: string,
+    @Res() res: Response,
+  ) {
+    const pdf = await this.coupons.exportBatchPdf({ batchId });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename=\"coupon-batch-${batchId}.pdf\"`,
+    );
+    res.status(200).send(pdf);
   }
 }

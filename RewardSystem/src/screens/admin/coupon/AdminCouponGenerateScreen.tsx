@@ -18,7 +18,6 @@ import type { AdminCouponStackParamList } from '../../../navigation/types';
 import { adminUi } from '../../../theme/adminUi';
 import { generateCouponBatch, listCoupons } from '../../../api/coupons';
 import { isApiError, userFacingApiMessage } from '../../../api/client';
-import { randomBatchDisplayNumber } from './couponGenerationUtils';
 import { ChevronDownSmall } from '../../../assets/svgs';
 
 type Nav = NativeStackNavigationProp<
@@ -85,16 +84,15 @@ export function AdminCouponGenerateScreen() {
     setGenerating(true);
     try {
       const result = await generateCouponBatch({ points: slabPts, quantity });
-      const previewCodes = result.slice(0, 80).map(c => c.code);
-      const firstCouponId = result[0]?.id ?? '';
-      const createdAtIso = result[0]?.createdAt ?? new Date().toISOString();
+      const previewCodes = (result.previewCodes ?? []).slice(0, 80);
+      const createdAtIso = result.createdAt ?? new Date().toISOString();
       navigation.navigate('AdminCouponPreview', {
         slabPts,
         quantity,
         totalPts,
-        batchNumber: randomBatchDisplayNumber(),
+        batchId: result.batchId,
+        batchNumber: result.batchNumber,
         previewCodes,
-        firstCouponId,
         createdAtIso,
       });
     } catch (e) {

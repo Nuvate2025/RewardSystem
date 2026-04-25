@@ -21,6 +21,19 @@ export type GeneratedCouponItem = {
   createdAt: string;
 };
 
+export type GenerateCouponBatchResponse = {
+  batchId: string;
+  batchNumber: number;
+  createdAt: string;
+  quantity: number;
+  title: string;
+  points: number;
+  site: string | null;
+  expiresAt: string | null;
+  previewCodes: string[];
+  items: GeneratedCouponItem[];
+};
+
 export async function generateCouponBatch(params: {
   points: number;
   quantity: number;
@@ -31,7 +44,7 @@ export async function generateCouponBatch(params: {
   const title =
     params.title ??
     `Coupon Batch – ${params.points.toLocaleString()} pts × ${params.quantity}`;
-  return apiPost<GeneratedCouponItem[]>('/coupons/generate', {
+  return apiPost<GenerateCouponBatchResponse>('/coupons/generate', {
     title,
     points: params.points,
     quantity: params.quantity,

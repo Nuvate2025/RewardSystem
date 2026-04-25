@@ -60,11 +60,10 @@ export type AdminCouponStackParamList = {
     slabPts: number;
     quantity: number;
     totalPts: number;
+    batchId: string;
     batchNumber: number;
     /** First ≤80 real codes returned by POST /coupons/generate */
     previewCodes: string[];
-    /** ID of the first generated coupon — used as batch anchor in export */
-    firstCouponId: string;
     createdAtIso: string;
   };
   AdminCouponExport: {
@@ -73,6 +72,9 @@ export type AdminCouponStackParamList = {
     totalCoupons: number;
     totalPts: number;
     slabPts: number;
+  };
+  AdminCouponPdfViewer: {
+    batchId: string;
   };
 };
 

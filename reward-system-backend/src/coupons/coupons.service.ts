@@ -16,6 +16,133 @@ import * as fs from 'fs';
 import QRCode from 'qrcode';
 import puppeteer from 'puppeteer';
 
+/**
+ * Coupon design SVGs live under `src/frontend_assets/svgs` and are not copied to `dist/`.
+ * When running compiled code, `__dirname` is `dist/coupons`, so `../frontend_assets` is wrong.
+ */
+function resolveBackendSvgAssetsDir(): string {
+  const candidates = [
+    path.join(process.cwd(), 'src', 'frontend_assets', 'svgs'),
+    path.resolve(__dirname, '../../src/frontend_assets/svgs'),
+    path.resolve(__dirname, '../frontend_assets/svgs'),
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch {
+      /* try next */
+    }
+  }
+  return candidates[0];
+}
+
+/** First existing file, or null (for optional designer plates). */
+function readOptionalSvgFile(paths: string[]): string | null {
+  for (const p of paths) {
+    try {
+      if (fs.existsSync(p)) return fs.readFileSync(p, 'utf8');
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
+}
+
+function sanitizeSvgMarkup(svg: string): string {
+  const cleaned = svg
+    .replace(/<\?xml[\s\S]*?\?>/g, '')
+    .replace(/<!DOCTYPE[\s\S]*?>/g, '')
+    .trim();
+
+  // Force responsive sizing so the SVG fills the face container.
+  // We keep its viewBox (already present in our assets).
+  return cleaned.replace(
+    /<svg\b([^>]*)>/i,
+    (m, attrs) =>
+      `<svg${attrs} width="100%" height="100%" preserveAspectRatio="xMidYMid meet">`,
+  );
+}
+
+function wrapSvgWithBackground(params: {
+  svg: string;
+  viewBox: string;
+  background: string;
+}): string {
+  const cleaned = params.svg
+    .replace(/<\?xml[\s\S]*?\?>/g, '')
+    .replace(/<!DOCTYPE[\s\S]*?>/g, '')
+    .trim();
+
+  // Remove outer <svg ...> ... </svg> so we can draw a background behind it.
+  const inner = cleaned
+    .replace(/^\s*<svg\b[^>]*>/i, '')
+    .replace(/<\/svg>\s*$/i, '')
+    .trim();
+
+  return `
+    <svg viewBox="${params.viewBox}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+      <rect x="0" y="0" width="100%" height="100%" fill="${params.background}" />
+      ${inner}
+    </svg>
+  `.trim();
+}
+
+function namespaceSvgIds(svg: string, prefix: string): string {
+  // Ensure unique ids when inlining the same SVG multiple times on a page.
+  // Handles id="x", url(#x), href="#x", and xlink:href="#x".
+  const idRegex = /\bid="([^"]+)"/g;
+  const ids = new Set<string>();
+  let m: RegExpExecArray | null;
+  // eslint-disable-next-line no-cond-assign
+  while ((m = idRegex.exec(svg))) {
+    ids.add(m[1]);
+  }
+  let out = svg;
+  for (const id of ids) {
+    const next = `${prefix}${id}`;
+    out = out
+      .replace(new RegExp(`\\bid="${id}"`, 'g'), `id="${next}"`)
+      .replace(new RegExp(`url\\(#${id}\\)`, 'g'), `url(#${next})`)
+      .replace(new RegExp(`href="#${id}"`, 'g'), `href="#${next}"`)
+      .replace(new RegExp(`xlink:href="#${id}"`, 'g'), `xlink:href="#${next}"`);
+  }
+  return out;
+}
+
+function prepareBackStepsSvg(params: {
+  svg: string;
+  idPrefix: string;
+  background: string;
+  /** When false, skip the full-bleed rect (parent `.backFace` supplies the color). */
+  injectBackground?: boolean;
+}): string {
+  // Keep the original SVG structure intact (defs/masks/clips are sensitive),
+  // but namespace ids and optionally inject a background rect.
+  let s = params.svg
+    .replace(/<\?xml[\s\S]*?\?>/g, '')
+    .replace(/<!DOCTYPE[\s\S]*?>/g, '')
+    .trim();
+
+  s = namespaceSvgIds(s, params.idPrefix);
+
+  // Make it responsive in our container.
+  s = s.replace(
+    /<svg\b([^>]*)>/i,
+    (_m, attrs) =>
+      `<svg${attrs} width="100%" height="100%" preserveAspectRatio="xMidYMid meet">`,
+  );
+
+  if (params.injectBackground !== false) {
+    s = s.replace(
+      /<svg\b[^>]*>/i,
+      (open) =>
+        `${open}<rect x="0" y="0" width="100%" height="100%" fill="${params.background}" />`,
+    );
+  }
+
+  return s;
+}
+
 @Injectable()
 export class CouponsService {
   constructor(
@@ -242,7 +369,7 @@ export class CouponsService {
     };
 
     // Prefer backend-hosted design assets; fall back to app assets if needed.
-    const backendAssetsDir = path.resolve(__dirname, '../frontend_assets/svgs');
+    const backendAssetsDir = resolveBackendSvgAssetsDir();
     const backendRoot = path.resolve(__dirname, '../../..'); // <repo>/reward-system-backend
     const repoRoot = path.resolve(backendRoot, '..'); // <repo>
     const appAssetsDir = path.resolve(
@@ -255,31 +382,40 @@ export class CouponsService {
       'originals',
     );
 
-    const couponStepsSvg = readFirstExisting([
+    const couponBackSvg = readFirstExisting([
       path.join(backendAssetsDir, 'coupon_steps.svg'),
       path.join(appAssetsDir, 'coupon_steps.svg'),
+    ]);
+    // Optional single 660×245 SVG from design (logo + steps + chip). When present, replaces composed back.
+    const couponBackFullSvg = readOptionalSvgFile([
+      path.join(backendAssetsDir, 'coupon_back_full.svg'),
     ]);
     const couponPhoneScanSvg = readFirstExisting([
       path.join(backendAssetsDir, 'coupon_phone_scan.svg'),
       path.join(appAssetsDir, 'coupon_phone_scan.svg'),
     ]);
-    const bestBondSvg = readFirstExisting([
+    const couponFrontManLogoSvg = readFirstExisting([
+      path.join(backendAssetsDir, 'coupon_front_man_logo.svg'),
+      // no app fallback yet for this new asset
+    ]);
+    const couponBackBrandLogoSvg = readFirstExisting([
+      path.join(backendAssetsDir, 'coupon_back_brand.svg'),
       path.join(backendAssetsDir, 'coupon_best_bond.svg'),
-      path.join(appAssetsDir, 'best_bond.svg'),
+      path.join(repoRoot, 'RewardSystem', 'src', 'assets', 'svgs', 'originals', 'best_bond.svg'),
     ]);
 
     const appDownloadUrl =
-      process.env.APP_DOWNLOAD_URL ?? 'https://bestbond.example/app';
+      process.env.APP_DOWNLOAD_URL?.trim() || 'https://bestbond.example/app';
     const downloadQr = await QRCode.toDataURL(appDownloadUrl, {
-      margin: 0,
-      width: 180,
+      margin: 2,
+      width: 240,
     });
 
-    // Render at the exact design canvas size (660x245), then scale in mm for A4 (3 per page).
+    // Render at the exact design canvas size (660x245), then scale in mm for A4.
     const DESIGN_W = 660;
     const DESIGN_H = 245;
-    const bannerWmm = 180;
-    const bannerHmm = (bannerWmm * DESIGN_H) / DESIGN_W;
+    const faceWmm = 180;
+    const faceHmm = (faceWmm * DESIGN_H) / DESIGN_W;
 
     const escapeHtml = (s: string) =>
       s
@@ -301,78 +437,137 @@ export class CouponsService {
       return `data:image/svg+xml;base64,${b64}`;
     };
 
-    const couponStepsUri = toSvgDataUri(couponStepsSvg);
     const couponPhoneScanUri = toSvgDataUri(couponPhoneScanSvg);
-    const bestBondUri = toSvgDataUri(bestBondSvg);
+    const couponFrontManLogoUri = toSvgDataUri(couponFrontManLogoSvg);
+    const couponBackBrandLogoUri = toSvgDataUri(couponBackBrandLogoSvg);
 
-    const bannerSvgs: string[] = [];
-    for (const c of coupons) {
+    const renderFrontSvg = (params: { code: string; points: number; qrDataUrl: string }) => {
+      const code = params.code;
+      const points = params.points;
+      const qr = params.qrDataUrl;
+
+      // New front design (from provided image): white left, orange right, centered pill, subtitle, top-right man+logo.
+      const LEFT_W = 220;
+      const RIGHT_X = LEFT_W;
+      const RIGHT_W = DESIGN_W - LEFT_W;
+
+      const iconW = 28;
+      const iconX = Math.round((LEFT_W - iconW) / 2);
+      const iconY = 14;
+      const qrSize = 150;
+      const qrX = Math.round((LEFT_W - qrSize) / 2);
+      const qrY = iconY + iconW + 10;
+      const idY = qrY + qrSize + 14;
+
+      const pillW = 330;
+      const pillH = 74;
+      const pillX = Math.round(RIGHT_X + (RIGHT_W - pillW) / 2);
+      const pillY = 76;
+      const pillR = Math.round(pillH / 2);
+
+      return `
+        <svg viewBox="0 0 ${DESIGN_W} ${DESIGN_H}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <clipPath id="clip">
+              <rect x="0" y="0" width="${DESIGN_W}" height="${DESIGN_H}" rx="26" ry="26" />
+            </clipPath>
+            <linearGradient id="orangeBg" x1="${RIGHT_X}" y1="0" x2="${DESIGN_W}" y2="245" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stop-color="#F97316"/>
+              <stop offset="1" stop-color="#EA6A12"/>
+            </linearGradient>
+          </defs>
+          <g clip-path="url(#clip)">
+            <rect x="0" y="0" width="${DESIGN_W}" height="${DESIGN_H}" fill="#FFFFFF" />
+            <rect x="${RIGHT_X}" y="0" width="${RIGHT_W}" height="${DESIGN_H}" fill="url(#orangeBg)" />
+
+            <!-- subtle texture-ish overlay (keeps it pure SVG) -->
+            <path d="M${RIGHT_X + 40} 18C${RIGHT_X + 80} 50 ${RIGHT_X + 150} 78 ${RIGHT_X + 240} 96C${RIGHT_X + 315} 111 ${RIGHT_X + 365} 132 ${RIGHT_X + 420} 162V0H${RIGHT_X}v245h${RIGHT_W}v-26c-62-8-126-30-190-66C${RIGHT_X + 140} 126 ${RIGHT_X + 80} 72 ${RIGHT_X + 40} 18Z" fill="#000" opacity="0.06"/>
+
+            <!-- Left: phone scan icon -->
+            <image href="${couponPhoneScanUri}" x="${iconX}" y="${iconY}" width="${iconW}" height="${iconW}" />
+
+            <!-- Left: coupon QR -->
+            <image href="${qr}" x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" preserveAspectRatio="xMidYMid meet" />
+
+            <!-- Left: ID label -->
+            <text x="${Math.round(LEFT_W / 2)}" y="${idY}" text-anchor="middle"
+              font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif"
+              font-size="13" font-weight="700" fill="#6B7280">ID: ${escapeHtml(code)}</text>
+
+            <!-- Right: man + BestBond logo -->
+            <image href="${couponFrontManLogoUri}" x="${DESIGN_W - 62}" y="14" width="52" height="52" preserveAspectRatio="xMidYMid meet" />
+
+            <!-- Center pill -->
+            <rect x="${pillX}" y="${pillY}" width="${pillW}" height="${pillH}" rx="${pillR}" ry="${pillR}" fill="#FFFFFF" />
+            <text x="${pillX + Math.round(pillW / 2)}" y="${pillY + 50}" text-anchor="middle"
+              font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif"
+              font-size="36" font-weight="900" fill="#1F2937">${escapeHtml(fmtPoints(points))} Points</text>
+
+            <!-- Subtitle -->
+            <text x="${RIGHT_X + Math.round(RIGHT_W / 2)}" y="198" text-anchor="middle"
+              font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif"
+              font-size="14" font-weight="600" fill="#FFFFFF">Scan in the Best Bond app to redeem</text>
+          </g>
+        </svg>
+      `;
+    };
+
+    const renderBackSvg = (
+      idPrefix: string,
+      appDownloadQrDataUrl: string,
+      bestBondLogoDataUri: string,
+    ) => {
+      if (couponBackFullSvg) {
+        const plate = prepareBackStepsSvg({
+          svg: couponBackFullSvg,
+          idPrefix,
+          background: '#141E30',
+          injectBackground: false,
+        });
+        return `<div class="backFace backFace--plate">${plate}</div>`;
+      }
+      const steps = prepareBackStepsSvg({
+        svg: couponBackSvg,
+        idPrefix,
+        background: '#141E30',
+        injectBackground: false,
+      });
+      return `
+        <div class="backFace">
+          <div class="backHeader">
+            <img class="backLogo" src="${bestBondLogoDataUri}" alt="" />
+          </div>
+          <div class="backSteps">${steps}</div>
+          <div class="backCta" aria-hidden="true">
+            <div class="backCtaInner">
+              <div class="backCtaTop">
+                <div class="backCtaQrCard">
+                  <img class="backCtaQr" src="${appDownloadQrDataUrl}" alt="" />
+                </div>
+                <span class="backCtaText">Download the app</span>
+              </div>
+              <div class="backCtaFill"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    };
+
+    const couponPages: string[] = [];
+    for (let i = 0; i < coupons.length; i++) {
+      const c = coupons[i];
       const code = String(c.code);
       const points = Number(c.points ?? 0);
       const qr = await QRCode.toDataURL(code, { margin: 0, width: 520 });
 
-      // SVG layout tuned to match the provided coupon banner design (660x245).
-      bannerSvgs.push(`
-        <div class="banner" style="width:${bannerWmm}mm;height:${bannerHmm}mm;">
-          <svg viewBox="0 0 ${DESIGN_W} ${DESIGN_H}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-            <!-- Background + rounded corners -->
-            <defs>
-              <clipPath id="clip">
-                <rect x="0" y="0" width="${DESIGN_W}" height="${DESIGN_H}" rx="26" ry="26" />
-              </clipPath>
-            </defs>
-            <g clip-path="url(#clip)">
-              <rect x="0" y="0" width="${DESIGN_W}" height="${DESIGN_H}" fill="#FFFFFF" />
-              <rect x="${DESIGN_W / 2}" y="0" width="${DESIGN_W / 2}" height="${DESIGN_H}" fill="#1F2A37" />
-
-              <!-- Left: phone scan icon -->
-              <image href="${couponPhoneScanUri}" x="34" y="22" width="46" height="46" />
-
-              <!-- Left: coupon QR -->
-              <image href="${qr}" x="44" y="70" width="240" height="240" preserveAspectRatio="xMidYMid meet" />
-              <!-- The QR needs to fit the left panel height; mask overflow -->
-              <rect x="0" y="0" width="${DESIGN_W / 2}" height="${DESIGN_H}" fill="transparent" />
-
-              <!-- Left: ID label -->
-              <text x="${DESIGN_W / 4}" y="232" text-anchor="middle"
-                font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif"
-                font-size="18" font-weight="700" fill="#6B7280">ID: ${escapeHtml(code)}</text>
-
-              <!-- Right: BestBond logo top-right -->
-              <image href="${bestBondUri}" x="597" y="18" width="48" height="48" preserveAspectRatio="xMidYMid meet" opacity="0.98" />
-
-              <!-- Right: Redeem row -->
-              <text x="350" y="70"
-                font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif"
-                font-size="34" font-weight="800" fill="#FFFFFF">Redeem:</text>
-              <rect x="482" y="40" width="220" height="62" rx="31" ry="31" fill="#F97316" />
-              <text x="592" y="81" text-anchor="middle"
-                font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif"
-                font-size="34" font-weight="900" fill="#FFFFFF">${escapeHtml(fmtPoints(points))} Points</text>
-
-              <!-- Right: steps graphic -->
-              <image href="${couponStepsUri}" x="360" y="98" width="250" height="124" preserveAspectRatio="xMidYMid meet" />
-
-              <!-- Right: Download strip -->
-              <rect x="606" y="56" width="44" height="156" rx="20" ry="20" fill="#FFFFFF" />
-              <g transform="translate(628 134) rotate(-90)">
-                <text x="0" y="0" text-anchor="middle"
-                  font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif"
-                  font-size="16" font-weight="700" fill="#1F2A37">Download the app</text>
-              </g>
-              <image href="${downloadQr}" x="612" y="166" width="32" height="32" preserveAspectRatio="xMidYMid meet" />
-            </g>
-          </svg>
-        </div>
-      `);
-    }
-
-    // 3 banners per page stacked vertically
-    const pages: string[] = [];
-    for (let i = 0; i < bannerSvgs.length; i += 3) {
-      pages.push(`
+      couponPages.push(`
         <div class="page">
-          ${bannerSvgs.slice(i, i + 3).join('')}
+          <div class="face" style="width:${faceWmm}mm;height:${faceHmm}mm;">
+            ${renderFrontSvg({ code, points, qrDataUrl: qr })}
+          </div>
+          <div class="face" style="width:${faceWmm}mm;height:${faceHmm}mm;">
+            ${renderBackSvg(`b${i}_`, downloadQr, couponBackBrandLogoUri)}
+          </div>
         </div>
       `);
     }
@@ -385,12 +580,80 @@ export class CouponsService {
           <style>
             @page { size: A4; margin: 10mm; }
             body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; }
-            .page { page-break-after: always; display: flex; flex-direction: column; gap: 8mm; }
-            .banner { display: block; border-radius: 10mm; overflow: hidden; }
+            .page { page-break-after: always; display: flex; flex-direction: column; gap: 10mm; align-items: flex-start; }
+            .face { display: block; border-radius: 10mm; overflow: hidden; }
+            .backFace {
+              width: 100%;
+              height: 100%;
+              box-sizing: border-box;
+              display: flex;
+              flex-direction: column;
+              background: #141E30;
+              overflow: hidden;
+            }
+            .backFace--plate { padding: 0; }
+            .backFace--plate > svg { display: block; width: 100%; height: 100%; flex: 1 1 auto; min-height: 0; }
+            .backHeader { flex: 0 0 auto; padding: 1.4mm 2.8mm 0.4mm; }
+            .backLogo { height: 9.5mm; width: auto; max-width: 58%; display: block; object-fit: contain; object-position: left center; }
+            .backSteps {
+              flex: 1 1 auto;
+              min-height: 0;
+              padding: 0 1.5mm;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            .backSteps > svg { width: 100%; height: 100%; display: block; flex: 1 1 auto; min-width: 0; min-height: 0; }
+            /*
+             * Clip shows the top of the chip only. Content must live in .backCtaTop (pinned to top);
+             * centering the row in the full chip put the QR in the clipped-off lower half.
+             */
+            .backCta {
+              flex: 0 0 auto;
+              height: 9mm;
+              overflow: hidden;
+              display: flex;
+              justify-content: center;
+              align-items: flex-start;
+              padding: 0 2.5mm 0;
+            }
+            .backCtaInner {
+              box-sizing: border-box;
+              width: min(78%, 64mm);
+              min-height: 14.5mm;
+              height: 14.5mm;
+              display: flex;
+              flex-direction: column;
+              background: #ffffff;
+              border: 0.28mm solid #D1D5DB;
+              border-bottom: none;
+              border-radius: 3mm 3mm 0 0;
+            }
+            .backCtaTop {
+              flex: 0 0 auto;
+              display: flex;
+              flex-direction: row;
+              align-items: center;
+              gap: 2.2mm;
+              padding: 0.9mm 2.6mm 0 1.8mm;
+            }
+            .backCtaFill {
+              flex: 1 1 auto;
+              min-height: 2.5mm;
+            }
+            .backCtaQrCard {
+              flex-shrink: 0;
+              padding: 0.35mm;
+              border-radius: 0.7mm;
+              background: #ffffff;
+              border: 0.22mm solid #E5E7EB;
+            }
+            .backCtaQr { width: 5.8mm; height: 5.8mm; display: block; }
+            .backCtaText { font-size: 2.95mm; font-weight: 800; color: #374151; letter-spacing: -0.01em; line-height: 1.15; }
           </style>
         </head>
         <body>
-          ${pages.join('')}
+          ${couponPages.join('')}
         </body>
       </html>
     `;
@@ -413,6 +676,299 @@ export class CouponsService {
     } finally {
       await browser.close();
     }
+  }
+
+  async exportBatchPreviewHtml(params: {
+    batchId: string;
+    index?: number;
+    perPage?: number;
+  }) {
+    const batchId = params.batchId.trim();
+    if (!batchId) throw new BadRequestException('Invalid batch id');
+
+    const coupons = await this.couponsRepo.find({
+      where: { batchId },
+      order: { createdAt: 'ASC' },
+      take: 50_000,
+    });
+    if (coupons.length === 0) throw new NotFoundException('Batch not found');
+
+    const index =
+      params.index != null && Number.isFinite(params.index)
+        ? Math.max(0, Math.floor(params.index))
+        : 0;
+    const perPage =
+      params.perPage != null && Number.isFinite(params.perPage)
+        ? Math.max(1, Math.min(6, Math.floor(params.perPage)))
+        : 1;
+
+    const slice = coupons.slice(index, index + perPage);
+
+    const readFirstExisting = (paths: string[]) => {
+      for (const p of paths) {
+        try {
+          if (fs.existsSync(p)) return fs.readFileSync(p, 'utf8');
+        } catch {
+          /* try next */
+        }
+      }
+      throw new NotFoundException(
+        `Coupon export assets missing. Tried: ${paths.join(', ')}`,
+      );
+    };
+
+    const backendAssetsDir = resolveBackendSvgAssetsDir();
+    const backendRoot = path.resolve(__dirname, '../../..'); // <repo>/reward-system-backend
+    const repoRoot = path.resolve(backendRoot, '..'); // <repo>
+    const appAssetsDir = path.resolve(
+      repoRoot,
+      'RewardSystem',
+      'RewardSystem',
+      'src',
+      'assets',
+      'svgs',
+      'originals',
+    );
+
+    const couponBackSvg = readFirstExisting([
+      path.join(backendAssetsDir, 'coupon_steps.svg'),
+      path.join(appAssetsDir, 'coupon_steps.svg'),
+    ]);
+    const couponBackFullSvg = readOptionalSvgFile([
+      path.join(backendAssetsDir, 'coupon_back_full.svg'),
+    ]);
+    const couponPhoneScanSvg = readFirstExisting([
+      path.join(backendAssetsDir, 'coupon_phone_scan.svg'),
+      path.join(appAssetsDir, 'coupon_phone_scan.svg'),
+    ]);
+    const couponFrontManLogoSvg = readFirstExisting([
+      path.join(backendAssetsDir, 'coupon_front_man_logo.svg'),
+    ]);
+    const couponBackBrandLogoSvg = readFirstExisting([
+      path.join(backendAssetsDir, 'coupon_back_brand.svg'),
+      path.join(backendAssetsDir, 'coupon_best_bond.svg'),
+      path.join(repoRoot, 'RewardSystem', 'src', 'assets', 'svgs', 'originals', 'best_bond.svg'),
+    ]);
+
+    const DESIGN_W = 660;
+    const DESIGN_H = 245;
+
+    const escapeHtml = (s: string) =>
+      s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+    const fmtPoints = (n: number) =>
+      n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+    const toSvgDataUri = (svg: string) => {
+      const cleaned = svg
+        .replace(/<\?xml[\s\S]*?\?>/g, '')
+        .replace(/<!DOCTYPE[\s\S]*?>/g, '')
+        .trim();
+      const b64 = Buffer.from(cleaned, 'utf8').toString('base64');
+      return `data:image/svg+xml;base64,${b64}`;
+    };
+
+    const couponPhoneScanUri = toSvgDataUri(couponPhoneScanSvg);
+    const couponFrontManLogoUri = toSvgDataUri(couponFrontManLogoSvg);
+    const couponBackBrandLogoUri = toSvgDataUri(couponBackBrandLogoSvg);
+
+    const appDownloadUrl =
+      process.env.APP_DOWNLOAD_URL?.trim() || 'https://bestbond.example/app';
+    const downloadQr = await QRCode.toDataURL(appDownloadUrl, {
+      margin: 2,
+      width: 240,
+    });
+
+    const renderFrontSvg = (p: { code: string; points: number; qrDataUrl: string }) => {
+      const code = p.code;
+      const points = p.points;
+      const qr = p.qrDataUrl;
+      const LEFT_W = 220;
+      const RIGHT_X = LEFT_W;
+      const RIGHT_W = DESIGN_W - LEFT_W;
+      const iconW = 28;
+      const iconX = Math.round((LEFT_W - iconW) / 2);
+      const iconY = 14;
+      const qrSize = 150;
+      const qrX = Math.round((LEFT_W - qrSize) / 2);
+      const qrY = iconY + iconW + 10;
+      const idY = qrY + qrSize + 14;
+      const pillW = 330;
+      const pillH = 74;
+      const pillX = Math.round(RIGHT_X + (RIGHT_W - pillW) / 2);
+      const pillY = 76;
+      const pillR = Math.round(pillH / 2);
+      return `
+        <svg viewBox="0 0 ${DESIGN_W} ${DESIGN_H}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <clipPath id="clip">
+              <rect x="0" y="0" width="${DESIGN_W}" height="${DESIGN_H}" rx="26" ry="26" />
+            </clipPath>
+            <linearGradient id="orangeBg" x1="${RIGHT_X}" y1="0" x2="${DESIGN_W}" y2="245" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stop-color="#F97316"/>
+              <stop offset="1" stop-color="#EA6A12"/>
+            </linearGradient>
+          </defs>
+          <g clip-path="url(#clip)">
+            <rect x="0" y="0" width="${DESIGN_W}" height="${DESIGN_H}" fill="#FFFFFF" />
+            <rect x="${RIGHT_X}" y="0" width="${RIGHT_W}" height="${DESIGN_H}" fill="url(#orangeBg)" />
+            <path d="M${RIGHT_X + 40} 18C${RIGHT_X + 80} 50 ${RIGHT_X + 150} 78 ${RIGHT_X + 240} 96C${RIGHT_X + 315} 111 ${RIGHT_X + 365} 132 ${RIGHT_X + 420} 162V0H${RIGHT_X}v245h${RIGHT_W}v-26c-62-8-126-30-190-66C${RIGHT_X + 140} 126 ${RIGHT_X + 80} 72 ${RIGHT_X + 40} 18Z" fill="#000" opacity="0.06"/>
+            <image href="${couponPhoneScanUri}" x="${iconX}" y="${iconY}" width="${iconW}" height="${iconW}" />
+            <image href="${qr}" x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" preserveAspectRatio="xMidYMid meet" />
+            <text x="${Math.round(LEFT_W / 2)}" y="${idY}" text-anchor="middle"
+              font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif"
+              font-size="13" font-weight="700" fill="#6B7280">ID: ${escapeHtml(code)}</text>
+            <image href="${couponFrontManLogoUri}" x="${DESIGN_W - 62}" y="14" width="52" height="52" preserveAspectRatio="xMidYMid meet" />
+            <rect x="${pillX}" y="${pillY}" width="${pillW}" height="${pillH}" rx="${pillR}" ry="${pillR}" fill="#FFFFFF" />
+            <text x="${pillX + Math.round(pillW / 2)}" y="${pillY + 50}" text-anchor="middle"
+              font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif"
+              font-size="36" font-weight="900" fill="#1F2937">${escapeHtml(fmtPoints(points))} Points</text>
+            <text x="${RIGHT_X + Math.round(RIGHT_W / 2)}" y="198" text-anchor="middle"
+              font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif"
+              font-size="14" font-weight="600" fill="#FFFFFF">Scan in the Best Bond app to redeem</text>
+          </g>
+        </svg>
+      `;
+    };
+
+    const renderBackSvg = (
+      idPrefix: string,
+      appDownloadQrDataUrl: string,
+      bestBondLogoDataUri: string,
+    ) => {
+      if (couponBackFullSvg) {
+        const plate = prepareBackStepsSvg({
+          svg: couponBackFullSvg,
+          idPrefix,
+          background: '#141E30',
+          injectBackground: false,
+        });
+        return `<div class="backFace backFace--plate">${plate}</div>`;
+      }
+      const steps = prepareBackStepsSvg({
+        svg: couponBackSvg,
+        idPrefix,
+        background: '#141E30',
+        injectBackground: false,
+      });
+      return `
+        <div class="backFace">
+          <div class="backHeader">
+            <img class="backLogo" src="${bestBondLogoDataUri}" alt="" />
+          </div>
+          <div class="backSteps">${steps}</div>
+          <div class="backCta" aria-hidden="true">
+            <div class="backCtaInner">
+              <div class="backCtaTop">
+                <div class="backCtaQrCard">
+                  <img class="backCtaQr" src="${appDownloadQrDataUrl}" alt="" />
+                </div>
+                <span class="backCtaText">Download the app</span>
+              </div>
+              <div class="backCtaFill"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    };
+
+    const blocks: string[] = [];
+    for (let i = 0; i < slice.length; i++) {
+      const c = slice[i];
+      const code = String(c.code);
+      const points = Number(c.points ?? 0);
+      const qr = await QRCode.toDataURL(code, { margin: 0, width: 520 });
+      blocks.push(`
+        <div class="coupon">
+          <div class="face">${renderFrontSvg({ code, points, qrDataUrl: qr })}</div>
+          <div class="face">${renderBackSvg(`b${i}_`, downloadQr, couponBackBrandLogoUri)}</div>
+        </div>
+      `);
+    }
+
+    return `
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <style>
+            body { margin: 0; padding: 24px; background: #F3F4F6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; }
+            .coupon { display: flex; flex-direction: column; gap: 24px; align-items: flex-start; }
+            .face { width: 660px; height: 245px; border-radius: 26px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.12); background: #fff; }
+            .backFace {
+              width: 100%;
+              height: 100%;
+              box-sizing: border-box;
+              display: flex;
+              flex-direction: column;
+              background: #141E30;
+              overflow: hidden;
+            }
+            .backFace--plate { padding: 0; }
+            .backFace--plate > svg { display: block; width: 100%; height: 100%; flex: 1 1 auto; min-height: 0; }
+            .backHeader { flex: 0 0 auto; padding: 8px 16px 4px; }
+            .backLogo { height: 38px; width: auto; max-width: 58%; display: block; object-fit: contain; object-position: left center; }
+            .backSteps {
+              flex: 1 1 auto;
+              min-height: 0;
+              padding: 0 10px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            .backSteps > svg { width: 100%; height: 100%; display: block; flex: 1 1 auto; min-width: 0; min-height: 0; }
+            .backCta {
+              flex: 0 0 auto;
+              height: 46px;
+              overflow: hidden;
+              display: flex;
+              justify-content: center;
+              align-items: flex-start;
+              padding: 0 14px 0;
+            }
+            .backCtaInner {
+              box-sizing: border-box;
+              width: min(78%, 520px);
+              min-height: 70px;
+              height: 70px;
+              display: flex;
+              flex-direction: column;
+              background: #ffffff;
+              border: 1px solid #D1D5DB;
+              border-bottom: none;
+              border-radius: 14px 14px 0 0;
+            }
+            .backCtaTop {
+              flex: 0 0 auto;
+              display: flex;
+              flex-direction: row;
+              align-items: center;
+              gap: 11px;
+              padding: 7px 18px 0 11px;
+            }
+            .backCtaFill { flex: 1 1 auto; min-height: 10px; }
+            .backCtaQrCard {
+              flex-shrink: 0;
+              padding: 2px;
+              border-radius: 6px;
+              background: #ffffff;
+              border: 1px solid #E5E7EB;
+            }
+            .backCtaQr { width: 34px; height: 34px; display: block; }
+            .backCtaText { font-size: 14px; font-weight: 800; color: #374151; letter-spacing: -0.01em; line-height: 1.15; }
+          </style>
+        </head>
+        <body>
+          ${blocks.join('')}
+        </body>
+      </html>
+    `;
   }
 
   async redeem(params: { userId: string; userRoles: string[]; code: string }) {

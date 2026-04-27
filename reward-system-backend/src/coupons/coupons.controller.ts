@@ -100,6 +100,9 @@ export class CouponsController {
   ) {
     const pdf = await this.coupons.exportBatchPdf({ batchId });
     res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.setHeader(
       'Content-Disposition',
       `inline; filename=\"coupon-batch-${batchId}.pdf\"`,

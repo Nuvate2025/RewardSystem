@@ -65,3 +65,7 @@ button:active {
 a {
   transition: color 0.2s ease;
 }
+
+.css-1u9des2-indicatorSeparator {
+  display: none !important;
+}

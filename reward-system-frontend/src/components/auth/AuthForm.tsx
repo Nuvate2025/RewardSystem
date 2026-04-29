@@ -24,7 +24,7 @@ const AuthForm = () => {
       if (step === "request") {
         try {
           const res = await axios.post(
-            `http://127.0.0.1:3000/auth/otp/request`,
+            `${import.meta.env.VITE_API_URL}/auth/otp/request`,
             {
               countryCode: values.countryCode,
               phone: values.phone,
@@ -69,7 +69,7 @@ const AuthForm = () => {
       } else {
         try {
           const res = await axios.post(
-            `http://127.0.0.1:3000/auth/admin/otp/login`,
+            `${import.meta.env.VITE_API_URL}/auth/admin/otp/login`,
             {
               countryCode: values.countryCode,
               phone: values.phone,

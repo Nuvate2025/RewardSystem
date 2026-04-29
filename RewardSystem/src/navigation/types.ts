@@ -101,6 +101,19 @@ export type RootStackParamList = {
   AdminMain: undefined;
 };
 
+export interface CouponBatch {
+  batchId: string;
+  batchNumber: number;
+  createdAt: string; // or Date if you parse it
+  expiresAt: string | null;
+  items: any[]; // define below if needed
+  points: number;
+  previewCodes: string[];
+  quantity: number;
+  site: string | null;
+  title: string;
+}
+
 export type RootStackScreenProps<T extends keyof RootStackParamList> =
   NativeStackScreenProps<RootStackParamList, T>;
 
@@ -115,3 +128,5 @@ export type AdminTabScreenProps<T extends keyof AdminTabParamList> =
     BottomTabScreenProps<AdminTabParamList, T>,
     NativeStackScreenProps<RootStackParamList>
   >;
+
+

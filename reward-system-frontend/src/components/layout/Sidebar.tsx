@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom"
-import { MdHomeFilled, MdPerson, MdPeople, MdQrCode2 } from "react-icons/md";
+import { MdHomeFilled, MdPerson, MdOutlineSwitchAccount} from "react-icons/md";
 import { RiCheckDoubleLine } from "react-icons/ri";
 
 
@@ -7,10 +7,10 @@ const Sidebar = () => {
   const location = useLocation()
 
   const navItems = [
-    { label: "Home", icon: <MdHomeFilled />, path: "/dashboard" },
-    { label: "Users", icon: <MdPeople />, path: "/users" },
-    { label: "Approvals", icon: <RiCheckDoubleLine />, path: "/approvals" },
-    { label: "Profile", icon: <MdPerson />, path: "/settings" },
+    { label: "Home", icon: <MdHomeFilled size={25} />, path: "/dashboard" },
+    { label: "Users", icon: <MdOutlineSwitchAccount size={25} />, path: "/users" },
+    { label: "Approvals", icon: <RiCheckDoubleLine size={25} />, path: "/approvals" },
+    { label: "Profile", icon: <MdPerson size={25} />, path: "/settings" },
   ]
 
   const isActive = (path: string) => location.pathname === path
@@ -22,7 +22,7 @@ const Sidebar = () => {
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <div className="w-auto h-12 ">
-             <img src="/logo.png" alt="logo" className="w-full h-full object-cover" />
+             <img src="/logo.svg" alt="logo" className="w-full h-full object-cover" />
             </div>
           </div>
           <span className="text-secondary text-sm font-semibold tracking-[0.6px] mt-3">SUPER ADMIN</span>
@@ -35,10 +35,10 @@ const Sidebar = () => {
           <Link
             key={item.path}
             to={item.path}
-            className={`flex items-center gap-3 px-6 py-3 transition-all group ${
+            className={`flex items-center gap-3 px-6 py-4 transition-all group ${
               isActive(item.path)
                 ? "bg-white/10 text-white border-l-4 border-primary"
-                : "text-gray-400 hover:text-white hover:bg-white/5"
+                : "text-secondary hover:text-white hover:bg-white/5"
             }`}
           >
             <span className={`text-xl ${isActive(item.path) ? "opacity-100" : "opacity-50 group-hover:opacity-100"}`}>
@@ -52,10 +52,10 @@ const Sidebar = () => {
       {/* Footer Button */}
       <div className="p-6">
         <Link 
-          to="/coupons/generate"
-          className="w-full bg-primary hover:bg-[#D9541E] text-white flex items-center justify-center gap-2 py-3.5 rounded-full transition-all font-bold text-md"
+          to="/coupon-generation/form"
+          className="w-full bg-primary hover:bg-[#D9541E] text-white flex items-center justify-center gap-3 py-3 rounded-full transition-all font-bold text-md"
         >
-          <MdQrCode2 className="text-lg" />
+          <img src="/qr_code_2_add.svg" alt="qr" />
           Generate
         </Link>
       </div>

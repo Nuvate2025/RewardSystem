@@ -8,6 +8,9 @@ import { Link } from "react-router-dom";
 const Dashboard = () => {
   const [loading, setLoading] = useState(false);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const userRoleStr = localStorage.getItem('userRole');
+  const userRoles = userRoleStr ? JSON.parse(userRoleStr) : [];
+const isSuperAdmin = userRoles.includes('SUPERADMIN');
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -53,7 +56,7 @@ const Dashboard = () => {
           {/* Greeting Section */}
           <div>
             <h2 className="text-3xl font-medium text-[#1E2633]">
-              Good Morning, <span className="text-[#1E2633] font-bold ">Admin</span>
+              Good Morning, <span className="text-[#1E2633] font-bold ">{isSuperAdmin ? "Super Admin" : "Operational Admin"}</span>
             </h2>
             <p className="text-gray-500 text-sm mt-1 font-medium">
               System status: <span className="text-gray-400 ">All services operational.</span>

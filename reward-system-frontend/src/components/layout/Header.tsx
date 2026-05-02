@@ -5,11 +5,15 @@ import { Link, useNavigate } from "react-router-dom"
 
 const Header = ({ title }: { title: string }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const userRoleStr = localStorage.getItem('userRole');
+  const userRoles = userRoleStr ? JSON.parse(userRoleStr) : [];
+const isSuperAdmin = userRoles.includes('SUPERADMIN');
+
 
 const navigate  = useNavigate();
     const handleLogout = () => {
     localStorage.removeItem("accessToken");
-    navigate("/sign-up");
+    navigate("/login");
   };
 
   return (
@@ -35,12 +39,14 @@ const navigate  = useNavigate();
           >
             <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
               <img
-                src="https://ui-avatars.com/api/?name=Admin&background=1E2633&color=fff"
+                src={`https://ui-avatars.com/api/?name=${isSuperAdmin ? "Super+Admin" : "Operational+Admin"}&background=1E2633&color=fff`}
                 alt="Admin"
                 className="w-full h-full object-cover"
               />
             </div>
-            <span className="text-xs font-bold text-[#1E2633] pr-2 tracking-wide uppercase">ADMIN</span>
+            <span className="text-xs font-bold text-[#1E2633] pr-2 tracking-wide uppercase">
+              {isSuperAdmin ? "SUPER ADMIN" : "OPERATIONAL ADMIN"}
+            </span>
           </button>
 
           {isProfileOpen && (

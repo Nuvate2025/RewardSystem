@@ -5,13 +5,16 @@ import { RiCheckDoubleLine } from "react-icons/ri";
 
 const Sidebar = () => {
   const location = useLocation()
+  const userRoleStr = localStorage.getItem('userRole');
+  const userRoles = userRoleStr ? JSON.parse(userRoleStr) : [];
+const isSuperAdmin = userRoles.includes('SUPERADMIN');
 
   const navItems = [
     { label: "Home", icon: <MdHomeFilled size={25} />, path: "/dashboard" },
-    { label: "Users", icon: <MdOutlineSwitchAccount size={25} />, path: "/users" },
+    { label: "Users", icon: <MdOutlineSwitchAccount size={25} />, path: "/users", roles: ['SUPERADMIN'] },
     { label: "Approvals", icon: <RiCheckDoubleLine size={25} />, path: "/approvals" },
     { label: "Profile", icon: <MdPerson size={25} />, path: "/settings" },
-  ]
+  ].filter(item => !item.roles || item.roles.includes(isSuperAdmin ? 'SUPERADMIN' : 'OPERATIONAL_ADMIN'));
 
   const isActive = (path: string) => location.pathname === path
 
@@ -25,7 +28,9 @@ const Sidebar = () => {
              <img src="/logo.svg" alt="logo" className="w-full h-full object-cover" />
             </div>
           </div>
-          <span className="text-secondary text-sm font-semibold tracking-[0.6px] mt-3">SUPER ADMIN</span>
+          <span className="text-secondary text-sm font-semibold tracking-[0.6px] mt-3">
+            {isSuperAdmin ? "SUPER ADMIN" : "OPERATIONAL ADMIN"}
+          </span>
         </div>
       </div>
 
@@ -50,15 +55,17 @@ const Sidebar = () => {
       </nav>
 
       {/* Footer Button */}
-      <div className="p-6">
-        <Link 
-          to="/coupon-generation/form"
-          className="w-full bg-primary hover:bg-[#D9541E] text-white flex items-center justify-center gap-3 py-3 rounded-full transition-all font-bold text-md"
-        >
-          <img src="/qr_code_2_add.svg" alt="qr" />
-          Generate
-        </Link>
-      </div>
+      {isSuperAdmin && (
+        <div className="p-6">
+          <Link 
+            to="/coupon-generation/form"
+            className="w-full bg-primary hover:bg-[#D9541E] text-white flex items-center justify-center gap-3 py-3 rounded-full transition-all font-bold text-md"
+          >
+            <img src="/qr_code_2_add.svg" alt="qr" />
+            Generate
+          </Link>
+        </div>
+      )}
     </div>
   )
 }

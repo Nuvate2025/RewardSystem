@@ -11,6 +11,7 @@ import { toast, ToastContainer } from "react-toastify";
 
 const AuthForm = () => {
   const [step, setStep] = useState<"request" | "verify">("request");
+  const [isAdminType, setIsAdminType] = useState<"super" | "management">("super");
   const [otpValue, setOtpValue] = useState("");
   const navigate = useNavigate();
 
@@ -73,6 +74,7 @@ const AuthForm = () => {
           if (res.status === 201) {
             toast.success("Login Successful")
             localStorage.setItem('accessToken', res?.data?.accessToken);
+            localStorage.setItem('userRole', JSON.stringify(res?.data?.roles || []));
             navigate('/dashboard');
           }
         } catch (error) {
@@ -95,7 +97,9 @@ const AuthForm = () => {
         <div className="space-y-1">
           <h1 className="text-[56px] font-bold font-bricolage leading-14">
             <span className="text-text-muted/30 block mb-1">Welcome to</span>
-            <span className="text-text-primary">Best Bonds</span>
+            <span className="text-text-primary">
+              {isAdminType === "super" ? "Super Admin" : "Management"}
+            </span>
           </h1>
           <p className="text-text-primary text-[16px] font-medium tracking-wide">
             {step === "request"
@@ -139,10 +143,20 @@ const AuthForm = () => {
           )}
         </div>
 
-        <div className="py-4">
+        <div className="py-4 space-y-4">
           <Button type="submit">
             {step === "request" ? "Get OTP" : "Verify OTP"}
           </Button>
+
+          {step === "request" && (
+            <button
+              type="button"
+              onClick={() => setIsAdminType(isAdminType === "super" ? "management" : "super")}
+              className="w-full py-4 rounded-full border-2 border-brand-orange text-brand-orange font-bold text-lg transition-all hover:bg-brand-orange/5"
+            >
+              {isAdminType === "super" ? "Management Login" : "Super Admin Login"}
+            </button>
+          )}
         </div>
 
         <p className="text-[14px] font-medium text-text-secondary tracking-wide text-center leading-5 max-w-[300px] mx-auto">

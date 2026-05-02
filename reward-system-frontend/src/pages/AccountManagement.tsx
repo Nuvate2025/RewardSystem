@@ -46,7 +46,7 @@ const AccountManagement = () => {
 
   const handleLogout = () => {
     localStorage.removeItem("accessToken");
-    navigate("/sign-up");
+    navigate("/login");
   };
 
   return (

@@ -5,60 +5,105 @@ import { MdArrowBack } from "react-icons/md";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import Swal from "sweetalert2";
+import { useState } from "react";
+
+async function exportErrorMessage(err: unknown): Promise<string> {
+  if (!axios.isAxiosError(err) || !err.response?.data) {
+    return String((err as Error)?.message ?? "Export failed");
+  }
+  const data = err.response.data;
+  if (data instanceof Blob) {
+    try {
+      const text = await data.text();
+      try {
+        const j = JSON.parse(text) as { message?: string };
+        return (j.message ?? text) || "Export failed";
+      } catch {
+        return text || "Export failed";
+      }
+    } catch {
+      return "Export failed";
+    }
+  }
+  if (typeof data === "object" && data !== null && "message" in data) {
+    return String((data as { message: string }).message);
+  }
+  return "Export failed";
+}
 
 const CouponExport = () => {
 const navigate = useNavigate()
 const { batchId } = useParams();
+const [downloading, setDownloading] = useState(false);
 
 const data = JSON.parse(localStorage.getItem("couponData") || "{}")
-console.log(data)
 
 
-const handleExportCoupons = async() =>{
+const handleExportCoupons = async () => {
+  const id = batchId?.trim();
+  if (!id) {
+    await Swal.fire({
+      title: "Export failed",
+      text: "Batch id is missing. Please regenerate the batch and try again.",
+      icon: "error",
+    });
+    return;
+  }
+
+  const token = localStorage.getItem("accessToken");
+  if (!token) {
+    await Swal.fire({
+      title: "Export failed",
+      text: "Not authenticated",
+      icon: "error",
+    });
+    return;
+  }
+
+  setDownloading(true);
   try {
-    const token = localStorage.getItem("accessToken");
-    const res = await axios.get(
-      `${import.meta.env.VITE_API_URL}/coupons/batches/${batchId}/export.pdf`,
+    // Match mobile: GET .../coupons/batches/:batchId/export.pdf with Bearer only (binary body).
+    const res = await axios.get<Blob>(
+      `${import.meta.env.VITE_API_URL}/coupons/batches/${encodeURIComponent(id)}/export.pdf`,
       {
-        params: {
-          batchId,
-        },
+        responseType: "blob",
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/pdf",
         },
       }
     );
-    if (res.status === 200) {
-      Swal.fire({
-        title: "Success!!",
-        text: "Coupon Batch Exported Successfully",
-        icon: "success",
-        timer: 1500,
-        showConfirmButton: false
-      });
-      // Download the file
-      const blob = new Blob([res.data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `coupon_batch_${batchId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    }
-  } catch (error : any) {
-    Swal.fire({
-      title: "Error!!",
-      text: error.response.data.message,
-      icon: "error",
+
+    const blob =
+      res.data instanceof Blob
+        ? res.data
+        : new Blob([res.data], { type: "application/pdf" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `coupon-batch-${id}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    await Swal.fire({
+      title: "Success",
+      text: "Coupon batch downloaded",
+      icon: "success",
       timer: 1500,
-      showConfirmButton: false
+      showConfirmButton: false,
     });
+  } catch (error) {
+    const text = await exportErrorMessage(error);
+    await Swal.fire({
+      title: "Export failed",
+      text,
+      icon: "error",
+    });
+  } finally {
+    setDownloading(false);
   }
-  
-}
+};
 
 
     return (
@@ -122,39 +167,23 @@ const handleExportCoupons = async() =>{
           Select Export Format
         </p>
 
-        <div className="flex gap-4">
-          
-          {/* PDF */}
-          {/* <button
-            // onClick={() => setFormat("pdf")}
-            // className={`flex-1 py-4 rounded-full border text-sm font-semibold transition ${
-            //   format === "pdf"
-            //     ? "border-orange-500 bg-orange-50 text-orange-600"
-            //     : "border-gray-300 text-gray-400"
-            }`}
-          >
-            PDF (Print Ready)
-          </button> */}
-
-          {/* CSV */}
-          <button
-            // onClick={() => setFormat("csv")}
-            // className={`flex-1 py-4 rounded-full border text-sm font-semibold transition ${
-            //   format === "csv"
-            //     ? "border-orange-500 bg-orange-50 text-orange-600"
-            //     : "border-gray-300 text-gray-400"
-            // }`}
-          >
-            CSV Transaction History
-          </button>
-
+        <div
+          className="w-full py-4 px-4 rounded-full border-2 border-orange-500 bg-orange-50 text-orange-600 text-sm font-semibold text-center"
+          role="status"
+        >
+          PDF (Print Ready)
         </div>
       </div>
 
       {/* Download Button */}
-      <button className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-full font-semibold flex items-center justify-center gap-2 shadow-lg" onClick={handleExportCoupons}>
+      <button
+        type="button"
+        disabled={downloading}
+        className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-70 text-white py-4 rounded-full font-semibold flex items-center justify-center gap-2 shadow-lg"
+        onClick={handleExportCoupons}
+      >
         <BiDownload size={18} />
-        Download
+        {downloading ? "Downloading…" : "Download"}
       </button>
 
       {/* Cancel */}

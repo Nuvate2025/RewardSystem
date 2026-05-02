@@ -15,6 +15,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import QRCode from 'qrcode';
 import puppeteer from 'puppeteer';
+import { PDFDocument } from 'pdf-lib';
 
 /**
  * Coupon design SVGs live under `src/frontend_assets/svgs` and are not copied to `dist/`.
@@ -141,6 +142,145 @@ function prepareBackStepsSvg(params: {
   }
 
   return s;
+}
+
+/** Limits Chromium memory per pass; merged into one PDF. */
+function couponExportPdfChunkSize(): number {
+  const raw = process.env.COUPON_EXPORT_PDF_CHUNK_SIZE;
+  const n = raw ? Number(raw) : 20;
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 20;
+}
+
+function puppeteerPdfTimeoutMs(): number {
+  const raw = process.env.PUPPETEER_PDF_TIMEOUT_MS;
+  const n = raw ? Number(raw) : 180_000;
+  return Number.isFinite(n) && n >= 30_000 ? Math.floor(n) : 180_000;
+}
+
+function buildCouponBatchPdfHtml(innerPagesHtml: string): string {
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      @page { size: A4; margin: 10mm; }
+      body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; }
+      .page { page-break-after: always; display: flex; flex-direction: column; gap: 10mm; align-items: flex-start; }
+      .face { display: block; border-radius: 10mm; overflow: hidden; }
+      .backFace {
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        background: #141E30;
+        overflow: hidden;
+      }
+      .backFace--plate { padding: 0; }
+      .backFace--plate > svg { display: block; width: 100%; height: 100%; flex: 1 1 auto; min-height: 0; }
+      .backHeader { flex: 0 0 auto; padding: 1.4mm 2.8mm 0.4mm; }
+      .backLogo { height: 9.5mm; width: auto; max-width: 58%; display: block; object-fit: contain; object-position: left center; }
+      .backSteps {
+        flex: 1 1 auto;
+        min-height: 0;
+        padding: 0 1.5mm;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .backSteps > svg { width: 100%; height: 100%; display: block; flex: 1 1 auto; min-width: 0; min-height: 0; }
+      .backCta {
+        flex: 0 0 auto;
+        height: 9mm;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        padding: 0 2.5mm 0;
+      }
+      .backCtaInner {
+        box-sizing: border-box;
+        width: min(78%, 64mm);
+        min-height: 14.5mm;
+        height: 14.5mm;
+        display: flex;
+        flex-direction: column;
+        background: #ffffff;
+        border: 0.28mm solid #D1D5DB;
+        border-bottom: none;
+        border-radius: 3mm 3mm 0 0;
+      }
+      .backCtaTop {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 2.2mm;
+        padding: 0.9mm 2.6mm 0 1.8mm;
+      }
+      .backCtaFill {
+        flex: 1 1 auto;
+        min-height: 2.5mm;
+      }
+      .backCtaQrCard {
+        flex-shrink: 0;
+        padding: 0.35mm;
+        border-radius: 0.7mm;
+        background: #ffffff;
+        border: 0.22mm solid #E5E7EB;
+      }
+      .backCtaQr { width: 5.8mm; height: 5.8mm; display: block; }
+      .backCtaText { font-size: 2.95mm; font-weight: 800; color: #374151; letter-spacing: -0.01em; line-height: 1.15; }
+    </style>
+  </head>
+  <body>
+${innerPagesHtml}
+  </body>
+</html>`;
+}
+
+async function mergeCouponPdfBuffers(parts: Uint8Array[]): Promise<Uint8Array> {
+  if (parts.length === 0) throw new Error('No PDF chunks produced');
+  if (parts.length === 1) return parts[0];
+  const merged = await PDFDocument.create();
+  for (const raw of parts) {
+    const doc = await PDFDocument.load(raw);
+    const copied = await merged.copyPages(doc, doc.getPageIndices());
+    copied.forEach((p) => merged.addPage(p));
+  }
+  return new Uint8Array(await merged.save());
+}
+
+async function htmlToCouponPdfBuffer(html: string): Promise<Uint8Array> {
+  const timeoutMs = puppeteerPdfTimeoutMs();
+  const executablePath =
+    process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath();
+  const browser = await puppeteer.launch({
+    executablePath,
+    headless: true,
+    protocolTimeout: timeoutMs,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-crash-reporter',
+    ],
+  });
+  try {
+    const page = await browser.newPage();
+    page.setDefaultTimeout(timeoutMs);
+    await page.setContent(html, {
+      waitUntil: 'domcontentloaded',
+      timeout: timeoutMs,
+    });
+    return await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      preferCSSPageSize: true,
+    });
+  } finally {
+    await browser.close();
+  }
 }
 
 @Injectable()
@@ -572,110 +712,14 @@ export class CouponsService {
       `);
     }
 
-    const html = `
-      <!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <style>
-            @page { size: A4; margin: 10mm; }
-            body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; }
-            .page { page-break-after: always; display: flex; flex-direction: column; gap: 10mm; align-items: flex-start; }
-            .face { display: block; border-radius: 10mm; overflow: hidden; }
-            .backFace {
-              width: 100%;
-              height: 100%;
-              box-sizing: border-box;
-              display: flex;
-              flex-direction: column;
-              background: #141E30;
-              overflow: hidden;
-            }
-            .backFace--plate { padding: 0; }
-            .backFace--plate > svg { display: block; width: 100%; height: 100%; flex: 1 1 auto; min-height: 0; }
-            .backHeader { flex: 0 0 auto; padding: 1.4mm 2.8mm 0.4mm; }
-            .backLogo { height: 9.5mm; width: auto; max-width: 58%; display: block; object-fit: contain; object-position: left center; }
-            .backSteps {
-              flex: 1 1 auto;
-              min-height: 0;
-              padding: 0 1.5mm;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-            }
-            .backSteps > svg { width: 100%; height: 100%; display: block; flex: 1 1 auto; min-width: 0; min-height: 0; }
-            /*
-             * Clip shows the top of the chip only. Content must live in .backCtaTop (pinned to top);
-             * centering the row in the full chip put the QR in the clipped-off lower half.
-             */
-            .backCta {
-              flex: 0 0 auto;
-              height: 9mm;
-              overflow: hidden;
-              display: flex;
-              justify-content: center;
-              align-items: flex-start;
-              padding: 0 2.5mm 0;
-            }
-            .backCtaInner {
-              box-sizing: border-box;
-              width: min(78%, 64mm);
-              min-height: 14.5mm;
-              height: 14.5mm;
-              display: flex;
-              flex-direction: column;
-              background: #ffffff;
-              border: 0.28mm solid #D1D5DB;
-              border-bottom: none;
-              border-radius: 3mm 3mm 0 0;
-            }
-            .backCtaTop {
-              flex: 0 0 auto;
-              display: flex;
-              flex-direction: row;
-              align-items: center;
-              gap: 2.2mm;
-              padding: 0.9mm 2.6mm 0 1.8mm;
-            }
-            .backCtaFill {
-              flex: 1 1 auto;
-              min-height: 2.5mm;
-            }
-            .backCtaQrCard {
-              flex-shrink: 0;
-              padding: 0.35mm;
-              border-radius: 0.7mm;
-              background: #ffffff;
-              border: 0.22mm solid #E5E7EB;
-            }
-            .backCtaQr { width: 5.8mm; height: 5.8mm; display: block; }
-            .backCtaText { font-size: 2.95mm; font-weight: 800; color: #374151; letter-spacing: -0.01em; line-height: 1.15; }
-          </style>
-        </head>
-        <body>
-          ${couponPages.join('')}
-        </body>
-      </html>
-    `;
-
-    const executablePath =
-      process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath();
-    const browser = await puppeteer.launch({
-      executablePath,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
-    try {
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
-      const pdf = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        preferCSSPageSize: true,
-      });
-      return pdf;
-    } finally {
-      await browser.close();
+    const chunkSize = couponExportPdfChunkSize();
+    const pdfParts: Uint8Array[] = [];
+    for (let offset = 0; offset < couponPages.length; offset += chunkSize) {
+      const slice = couponPages.slice(offset, offset + chunkSize);
+      const html = buildCouponBatchPdfHtml(slice.join(''));
+      pdfParts.push(await htmlToCouponPdfBuffer(html));
     }
+    return mergeCouponPdfBuffers(pdfParts);
   }
 
   async exportBatchPreviewHtml(params: {

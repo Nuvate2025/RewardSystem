@@ -67,7 +67,7 @@ const AccountManagement = () => {
                   <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="#1E2633" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
-              <h1 className="text-xl font-bold text-[#1E2633]">User Profile</h1>
+              <h1 className="text-xl font-bold text-[#1E2633] font-bricolage ">User Profile</h1>
             </div>
 
             {/* Profile Main Card */}
@@ -86,18 +86,18 @@ const AccountManagement = () => {
               </div>
 
               <div className="space-y-4">
-                <h2 className="text-5xl font-black text-[#1E2633] tracking-tight">{profile?.fullName}</h2>
+                <h2 className="text-5xl font-black text-[#1E2633] tracking-tight font-bricolage">{profile?.fullName}</h2>
                 <div className="inline-block bg-[#FFF8F3] px-6 py-2 rounded-full border border-[#FFE7D6]">
-                  <p className="text-xs font-bold text-[#F26522] tracking-[0.2em] uppercase">{profile?.profession}</p>
+                  <p className="text-xs font-bold text-[#F26522] tracking-[0.2em] uppercase font-bricolage">{profile?.profession}</p>
                 </div>
               </div>
 
               <div className="flex flex-col items-center gap-0">
-                <div className="flex items-center gap-3 text-secondary font-medium text-sm tracking-widest uppercase px-6 py-2">
+                <div className="flex items-center gap-3 font-bricolage text-secondary font-medium text-sm tracking-widest uppercase px-6 py-2">
                     <BiPhone  size={22}/>
                   {profile?.phone}
                 </div>
-                <div className="flex items-center gap-2 text-secondary font-medium text-lg">
+                <div className="flex items-center font-bricolage gap-2 text-secondary font-medium text-lg">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M3 8L10.8906 13.2604C11.5624 13.7083 12.4376 13.7083 13.1094 13.2604L21 8M5 19H19C20.1046 19 21 18.1046 21 17V7C21 5.89543 20.1046 5 19 5H5C3.89543 5 3 5.89543 3 7V17C3 18.1046 3.89543 19 5 19Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
@@ -117,7 +117,7 @@ const AccountManagement = () => {
                     <MdSecurity className="text-3xl" />
                   </div>
                   <div className="text-left">
-                    <h4 className="text-xl font-bold text-[#1E2633]">Security & Preferences</h4>
+                    <h4 className="text-xl font-bold text-[#1E2633] font-bricolage">Security & Preferences</h4>
                     <p className="text-sm text-gray-400 font-medium mt-1">Manage credentials and PIN</p>
                   </div>
                 </div>
@@ -137,7 +137,7 @@ const AccountManagement = () => {
                     <MdNotifications className="text-3xl" />
                   </div>
                   <div className="text-left">
-                    <h4 className="text-xl font-bold text-[#1E2633]">System Notification</h4>
+                    <h4 className="text-xl font-bold text-[#1E2633] font-bricolage">System Notification</h4>
                     <p className="text-sm text-gray-400 font-medium mt-1">Critical alerts and notifications</p>
                   </div>
                 </div>

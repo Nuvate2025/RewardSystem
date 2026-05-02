@@ -130,7 +130,7 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">TOTAL POINTS ISSUED</p>
-                  <p className="text-4xl font-black text-[#1E2633] mt-2">
+                  <p className="text-4xl font-black text-[#1E2633] mt-2 font-bricolage">
                     {formatNumber(dashboardData?.pointsIssued?.totalLast7Days || 0)}
                   </p>
                 </div>
@@ -151,11 +151,11 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">POINTS REDEEMED</p>
-                  <p className="text-4xl font-black text-[#1E2633] mt-2">
+                  <p className="text-4xl font-black text-[#1E2633] mt-2 font-bricolage">
                     {formatNumber(dashboardData?.pointsRedeemed?.totalLast7Days || 0)}
                   </p>
                 </div>
-                <div className={`flex items-center gap-2 text-sm font-bold ${(dashboardData?.pointsRedeemed?.percentVsPriorWeek || 0) >= 0 ? "text-[#27AE60]" : "text-red-500"
+                <div className={`flex items-center gap-2 text-sm font-bold font-bricolage ${(dashboardData?.pointsRedeemed?.percentVsPriorWeek || 0) >= 0 ? "text-[#27AE60]" : "text-red-500"
                   }`}>
                   <span>{(dashboardData?.pointsRedeemed?.percentVsPriorWeek || 0) >= 0 ? "📈" : "📉"}</span>
                   <span>
@@ -181,7 +181,7 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">TOTAL ACTIVE USERS</p>
-                  <p className="text-5xl font-black text-[#1E2633] mt-2">
+                  <p className="text-5xl font-black text-[#1E2633] mt-2 font-bricolage">
                     {formatNumber(dashboardData?.activeUsers?.countLast7Days || 0)}
                   </p>
                 </div>

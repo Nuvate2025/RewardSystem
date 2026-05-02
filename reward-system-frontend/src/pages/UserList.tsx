@@ -54,7 +54,7 @@ const UserList = () => {
                   <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="#1E2633" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
-              <h1 className="text-xl font-bold text-[#1E2633]">User Management</h1>
+              <h1 className="text-xl font-bold text-[#1E2633] font-bricolage">User Management</h1>
             </div>
 
             {/* Search Bar */}
@@ -75,7 +75,7 @@ const UserList = () => {
                 <button
                   key={p}
                   onClick={() => setProfessionFilter(p)}
-                  className={`px-8 py-3 rounded-full text-base font-semibold transition-all whitespace-nowrap shadow-sm border ${
+                  className={`px-8 py-3 rounded-full font-bricolage text-base font-semibold transition-all whitespace-nowrap shadow-sm border ${
                     professionFilter === p 
                       ? "bg-text-primary text-white border-text-primary" 
                       : "bg-white text-text-primary border-border hover:bg-text-primary/10"
@@ -109,7 +109,7 @@ const UserList = () => {
                           />
                         </div>
                         <div>
-                          <p className="text-lg font-bold text-[#1E2633] group-hover:text-primary transition-colors">{user.name}</p>
+                          <p className="text-lg font-bold text-[#1E2633] group-hover:text-primary transition-colors font-bricolage">{user.name}</p>
                           <p className="text-sm font-medium text-gray-400">{user.profession}</p>
                         </div>
                       </div>

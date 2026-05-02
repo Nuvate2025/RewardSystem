@@ -35,7 +35,6 @@ const UserProfile = () => {
 
   const handleSuspendSubmit = async () => {
     if (!suspensionReason || !user) return;
-    
     setIsSuspending(true);
     try {
       const token = localStorage.getItem("accessToken");
@@ -102,7 +101,7 @@ const UserProfile = () => {
                   <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="var(--primary-color)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
-              <h1 className="text-xl font-bold text-text-primary">User Profile</h1>
+              <h1 className="text-xl font-bold text-text-primary font-bricolage">User Profile</h1>
             </div>
 
             {/* Profile Card */}
@@ -122,7 +121,7 @@ const UserProfile = () => {
                   </div>
                 </div>
                 <div>
-                  <h2 className="text-3xl font-black text-[#1E2633] mt-3">{user.fullName}</h2>
+                  <h2 className="text-3xl font-black text-[#1E2633] mt-3 font-bricolage">{user.fullName}</h2>
                   <div className="flex items-center gap-2">
                     <span className="text-base font-normal text-primary">{user.profession || 'Painter'}</span>
                   </div>
@@ -147,12 +146,12 @@ const UserProfile = () => {
               <div className="space-y-4">
                 <p className="text-[10px] font-bold text-secondary uppercase tracking-[0.2em]">CURRENT BALANCE</p>
                 <div className="flex items-baseline gap-3">
-                  <span className="text-7xl font-black text-[#1E2633] tracking-tighter">{user.loyaltyPoints}</span>
+                  <span className="text-7xl font-black text-[#1E2633] tracking-tighter font-bricolage">{user.loyaltyPoints}</span>
                   <span className="text-2xl font-bold text-secondary">PTS</span>
                 </div>
                 <div className="pt-6">
                   <p className="text-[10px] font-bold text-secondary uppercase tracking-widest">LAST UPDATED</p>
-                  <p className="text-sm font-bold text-[#1E2633] mt-1">{user.updatedAt ? new Date(user.updatedAt).toLocaleString() : "N/A"}</p>
+                  <p className="text-sm font-bold text-[#1E2633] mt-1 font-bricolage">{user.updatedAt ? new Date(user.updatedAt).toLocaleString() : "N/A"}</p>
                 </div>
               </div>
             </div>
@@ -161,20 +160,18 @@ const UserProfile = () => {
             <div className="bg-white rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
               <div className="px-8 py-4 border-b border-border flex items-center gap-3">
                 <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 12C14.21 12 16 10.21 16 8C16 5.79 14.21 4 12 4C9.79 4 8 5.79 8 8C8 10.21 9.79 12 12 12ZM12 14C9.33 14 4 15.34 4 18V20H20V18C20 15.34 14.67 14 12 14Z" fill="var(--text-secondary)" />
-                  </svg>
+                  <img src="/person.svg" alt="" />
                 </div>
                 <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">User Information</h3>
               </div>
               <div className="p-10 grid grid-cols-1 gap-10">
                 <div className="space-y-2">
                   <p className="text-[10px] font-bold text-secondary uppercase tracking-widest">MOBILE NUMBER</p>
-                  <p className="text-xl font-bold text-[#1E2633]">{user.phone}</p>
+                  <p className="text-xl font-bold text-[#1E2633] font-bricolage">{user.phone}</p>
                 </div>
                 <div className="space-y-2">
                   <p className="text-[10px] font-bold text-secondary uppercase tracking-widest">ADDRESS</p>
-                  <p className="text-xl font-bold text-[#1E2633] leading-relaxed max-w-2xl">
+                  <p className="text-xl font-bold text-[#1E2633] leading-relaxed max-w-2xl font-bricolage">
                     {user.deliveryAddress || "123 Main St, Block B Metropolis Industrial Zone"}
                   </p>
                 </div>

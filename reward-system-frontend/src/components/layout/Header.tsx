@@ -15,7 +15,7 @@ const navigate  = useNavigate();
   return (
     <div className="bg-white px-8 py-4 flex items-center justify-between sticky top-0 z-10">
       <div>
-        <h1 className="text-xl font-bold text-[#1E2633]">{title}</h1>
+        <h1 className="text-xl font-bold text-[#1E2633] font-bricolage">{title}</h1>
       </div>
 
       <div className="flex items-center gap-4">

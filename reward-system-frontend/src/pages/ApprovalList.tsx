@@ -27,7 +27,7 @@ const ApprovalList = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem("accessToken");
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/admin/redemptions`, {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/admin/redemptions?status=PENDING&take=20&offset=0&sort=NEWEST`, {
         headers: { Authorization: `Bearer ${token}` },
         params: { 
           sort: sortBy, 
@@ -65,12 +65,12 @@ const ApprovalList = () => {
                   <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="#1E2633" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
-              <h1 className="text-xl font-bold text-[#1E2633]">Approval Request List</h1>
+              <h1 className="text-xl font-bold text-[#1E2633] font-bricolage">Approval Request List</h1>
             </div>
 
             {/* Title Section */}
             <div>
-              <h2 className="text-4xl font-bold text-text-primary tracking-tight">Pending Approvals</h2>
+              <h2 className="text-4xl font-bold text-text-primary tracking-tight font-bricolage">Pending Approvals</h2>
               <p className="text-secondary text-base mt-3 font-medium max-w-2xl">
                 Review and authorise high-value rewards for the loyalty program ecosystem
               </p>

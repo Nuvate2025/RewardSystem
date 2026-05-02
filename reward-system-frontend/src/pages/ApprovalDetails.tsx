@@ -99,7 +99,7 @@ const ApprovalDetails = () => {
                   <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="#1E2633" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
-              <h1 className="text-xl font-bold text-[#1E2633]">Approval Request Details</h1>
+              <h1 className="text-xl font-bold text-[#1E2633] font-bricolage">Approval Request Details</h1>
             </div>
 
             {/* Status Alert Banner */}
@@ -122,9 +122,9 @@ const ApprovalDetails = () => {
                   <img src={`https://ui-avatars.com/api/?name=${request.itemName}&background=random&color=fff`} alt="" className="w-full h-full object-cover opacity-90" />
                 </div>
                 <div>
-                  <h3 className="text-4xl font-black text-[#1E2633] tracking-tight">{request.itemName}</h3>
+                  <h3 className="text-4xl font-black text-[#1E2633] tracking-tight font-bricolage">{request.itemName}</h3>
                   <div className="flex items-baseline gap-2 mt-2">
-                    <span className="text-3xl font-black text-[#F26522] tracking-tighter">{request.points.toLocaleString()}</span>
+                    <span className="text-3xl font-black text-[#F26522] tracking-tighter font-bricolage">{request.points.toLocaleString()}</span>
                     <span className="text-lg font-bold text-[#F26522] uppercase">PTS</span>
                   </div>
                 </div>
@@ -151,15 +151,15 @@ const ApprovalDetails = () => {
               <div className="bg-white rounded-[32px] p-10 border border-gray-50 shadow-inner grid grid-cols-1 md:grid-cols-2 gap-y-10 gap-x-16">
                 <div className="space-y-2">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">FULL NAME</p>
-                  <p className="text-xl font-bold text-[#1E2633]">{request.requesterInfo.fullName}</p>
+                  <p className="text-xl font-bold text-[#1E2633] font-bricolage">{request.requesterInfo.fullName}</p>
                 </div>
                 <div className="space-y-2">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">MOBILE NUMBER</p>
-                  <p className="text-xl font-bold text-[#1E2633] tracking-wide">{request.requesterInfo.phone}</p>
+                  <p className="text-xl font-bold text-[#1E2633] tracking-wide font-bricolage">{request.requesterInfo.phone}</p>
                 </div>
                 <div className="md:col-span-2 space-y-2">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">ADDRESS</p>
-                  <p className="text-xl font-bold text-[#1E2633] leading-relaxed max-w-3xl">
+                  <p className="text-xl font-bold text-[#1E2633] leading-relaxed max-w-3xl font-bricolage">
                     {request.requesterInfo.address}
                   </p>
                 </div>

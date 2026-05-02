@@ -68,7 +68,7 @@ const UserTransactions = () => {
                   <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="#1E2633" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
-              <h1 className="text-xl font-bold text-[#1E2633]">Transaction History</h1>
+              <h1 className="text-xl font-bold text-[#1E2633] font-bricolage">Transaction History</h1>
             </div>
 
             {/* User Summary Mini-Card */}
@@ -82,7 +82,7 @@ const UserTransactions = () => {
                   />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-black text-[#1E2633]">{user.fullName}</h2>
+                  <h2 className="text-2xl font-black text-[#1E2633] font-bricolage">{user.fullName}</h2>
                   <div className="flex items-center gap-2 mt-1">
                     <svg width="10" height="14" viewBox="0 0 14 18" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M7 0C3.13 0 0 3.13 0 7C0 12.25 7 18 7 18C7 18 14 12.25 14 7C14 3.13 10.87 0 7 0ZM7 9.5C5.62 9.5 4.5 8.38 4.5 7C4.5 5.62 5.62 4.5 7 4.5C8.38 4.5 9.5 5.62 9.5 7C9.5 8.38 8.38 9.5 7 9.5Z" fill="#F26522" />
@@ -107,7 +107,7 @@ const UserTransactions = () => {
                 <div className="space-y-3">
                   <p className="text-[14px] font-bold text-secondary uppercase tracking-[0.2em]">Total Points Balance</p>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-6xl font-black text-text-primary tracking-tighter">{transactions?.totalPointsEarned || 0}</span>
+                    <span className="text-6xl font-black text-text-primary tracking-tighter font-bricolage">{transactions?.totalPointsEarned || 0}</span>
                     <span className="text-xl font-bold text-secondary">PTS</span>
                   </div>
                   <div className="pt-4">
@@ -125,7 +125,7 @@ const UserTransactions = () => {
                 </div>
                 <div>
                   <p className="text-sm font-bold text-secondary uppercase tracking-widest">Monthly Scans</p>
-                  <p className="text-6xl font-black text-text-primary mt-1">{transactions?.totalPointsEarned || 0}</p>
+                  <p className="text-6xl font-black text-text-primary mt-1 font-bricolage">{transactions?.totalPointsEarned || 0}</p>
                 </div>
               </div>
             </div>

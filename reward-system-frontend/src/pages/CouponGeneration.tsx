@@ -120,7 +120,7 @@ const CouponGeneration = () => {
             >
               <MdArrowBack size={22}  onClick={()=> navigate(-1)} className="cursor-pointer"/>
             </button>
-            <h2 className="text-xl font-bold text-[#1E2633]">Generate Coupons</h2>
+            <h2 className="text-xl font-bold text-[#1E2633] font-bricolage">Generate Coupons</h2>
           </div>
 
           {/* Step 1: Form */}
@@ -184,7 +184,7 @@ const CouponGeneration = () => {
                   <div className="space-y-2">
                     <p className="text-[14px] font-bold text-secondary uppercase tracking-[1px]">TOTAL VALUE OF THE BATCH</p>
                     <div className="flex items-baseline gap-3">
-                      <span className="text-[44px]  text-text-primary font-bold -tracking-[3px]">
+                      <span className="text-[44px]  text-text-primary font-bold -tracking-[3px] font-bricolage">
                         {totalValue.toLocaleString()}
                       </span>
                       <span className="text-lg font-bold text-secondary uppercase tracking-wide">PTS</span>

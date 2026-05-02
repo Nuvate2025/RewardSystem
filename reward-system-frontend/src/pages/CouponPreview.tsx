@@ -54,8 +54,8 @@ const [data , setData] = useState<any>(null)
                                 <p className="text-[44px] font-bold  text-text-primary">{data?.quantity}</p>
                                 <p className="text-[18px] font-semibold text-secondary ">Coupons Generated</p>
                             </div>
-                            <div className="bg-white text-text-primary px-3 py-2.5 rounded-[24px] text-[14px] font-semibold mt-5 w-50 text-center flex items-center gap-3">
-                                <img src="/cards_star_light.svg" alt="cards_star_light" />   <span>Value:{data?.points} Pts each</span>
+                            <div className="bg-white text-text-primary px-3 py-2.5 rounded-[24px] text-[14px] font-semibold mt-5 w-50 text-center flex items-center gap-3 font-bricolage">
+                                <img src="/cards_star_light.svg" alt="cards_star_light " />   <span>Value:{data?.points} Pts each</span>
                             </div>
                         </div>
 

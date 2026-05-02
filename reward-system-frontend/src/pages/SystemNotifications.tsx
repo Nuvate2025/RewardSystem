@@ -25,13 +25,13 @@ const SystemNotifications = () => {
                   <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="#1E2633" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
-              <h1 className="text-lg font-bold text-[#1E2633]">System Notification</h1>
+              <h1 className="text-lg font-bold text-[#1E2633] font-bricolage">System Notification</h1>
             </div>
 
             {/* Alert Protocols Section */}
             <div className="space-y-10">
               <div className="max-w-2xl">
-                <h2 className="text-4xl font-bold text-text-primary tracking-tight">Alert Protocols</h2>
+                <h2 className="text-4xl font-bold text-text-primary tracking-tight font-bricolage">Alert Protocols</h2>
                 <p className="text-secondary text-base mt-1 font-medium leading-relaxed">
                   Configure high-priority system signals that require 
                   immediate administrative oversight.
@@ -39,7 +39,7 @@ const SystemNotifications = () => {
               </div>
 
               <div className="space-y-4 pb-12">
-                <p className="text-base font-bold text-secondary ml-2">System Alerts</p>
+                <p className="text-base font-bold text-secondary ml-2 font-bricolage">System Alerts</p>
                 
                 <div className="bg-white rounded-[40px] p-10 shadow-sm border border-gray-100 flex items-center justify-between group hover:border-[#1E2633]/20 transition-all">
                   <div className="flex items-center gap-10">

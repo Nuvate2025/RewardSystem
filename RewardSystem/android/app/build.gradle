@@ -84,6 +84,14 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+
+        // Windows builds can sometimes fail to link VisionCamera with missing C++ runtime symbols
+        // (operator new, __cxa_throw, std::mutex, ...). Force libc++_shared linking.
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_STL=c++_shared"
+            }
+        }
     }
     signingConfigs {
         debug {
